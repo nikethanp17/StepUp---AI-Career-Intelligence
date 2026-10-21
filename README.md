@@ -84,27 +84,21 @@ uvicorn main:app --reload
 cd frontend
 npm install
 npm run dev
-
+```
 
 📚 Academic & Research Alignment
+
 This project architecture is directly inspired by recent advancements in AI-driven recruitment:
-
 SMART-HIRING Framework: Utilizes NER for structural parsing and semantic embeddings for contextual matching.
-
 H3S (Hybrid Semantic-Structural Skill) Model: Validates the use of transformer-based embeddings over traditional TF-IDF/BM25 keyword matching to reduce bias and false negatives in candidate screening.
 
-
 🔮 Future Scope
+
 Integration with LinkedIn API for one-click profile importing.
-
 Real-time mock interview generation based on identified skill gaps.
-
 Multi-language resume support using multilingual transformer models.
 
-
 👨‍💻 Author
-   Nikky
-
+Nikky
 
 Built with ❤️ for the future of fair, actionable, and intelligent career development.
-```

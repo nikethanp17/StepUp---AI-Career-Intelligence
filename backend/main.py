@@ -1,5 +1,6 @@
 # backend/main.py
 import os
+import re
 import json
 import io
 from fastapi import FastAPI, UploadFile, File
@@ -93,7 +94,15 @@ async def upload_resume(file: UploadFile = File(...)):
         if filename.endswith('.pdf'):
             pdf_reader = PdfReader(io.BytesIO(contents))
             for page in pdf_reader.pages:
-                extracted_text += page.extract_text() + "\n"
+                text = page.extract_text()
+                if text:
+                    # Remove weird PDF artifacts and ligatures
+                    text = text.replace('ﬁ', 'fi').replace('ﬂ', 'fl').replace('ﬀ', 'ff')
+                    text = text.replace('¶', '').replace('§', '').replace('†', '')
+                    text = text.replace('–', '-').replace('—', '-')
+                    # Remove non-printable characters but keep basic punctuation
+                    text = ''.join(c for c in text if ord(c) < 128 or c in '•·')
+                    extracted_text += text + "\n"
         elif filename.endswith('.docx'):
             doc = Document(io.BytesIO(contents))
             for paragraph in doc.paragraphs:
@@ -106,10 +115,14 @@ async def upload_resume(file: UploadFile = File(...)):
                 "message": "Unsupported file format. Please upload PDF, DOCX, or TXT."
             }
         
+        # Clean up weird PDF/DOCX extraction artifacts
+        extracted_text = re.sub(r'[^\x00-\x7F]+', ' ', extracted_text)  # Remove non-ASCII
+        extracted_text = re.sub(r'\s+', ' ', extracted_text).strip()    # Normalise whitespace
+
         return {
             "status": "success",
             "filename": filename,
-            "extracted_text": extracted_text.strip()
+            "extracted_text": extracted_text
         }
     except Exception as e:
         return {
@@ -222,3 +235,27 @@ def generate_blueprint(data: BlueprintRequest):
             "status": "error",
             "message": str(e)
         }
+
+# --- BLOCK 5: ML MODEL 3 (GENERATIVE AI) — INTERVIEW QUESTIONS ---
+class InterviewRequest(BaseModel):
+    missing_skills: list[str]
+    target_role: str
+
+@app.post("/api/generate-interview")
+def generate_interview(data: InterviewRequest):
+    if not gemini_client:
+        return {"status": "error", "message": "No API Key"}
+    prompt = (
+        f"You are a strict technical interviewer for a {data.target_role} role. "
+        f"The candidate is missing these skills: {', '.join(data.missing_skills)}. "
+        "Generate exactly 3 tough, realistic interview questions to test them on these gaps. "
+        "For each question, provide a 'Hint' on how to answer it. "
+        "Return ONLY valid JSON in this format: "
+        '{ "questions": [ { "q": "Question text", "hint": "Hint text" } ] }'
+    )
+    try:
+        response = gemini_client.models.generate_content(model=GEMINI_MODEL_NAME, contents=prompt)
+        clean_text = response.text.replace("```json", "").replace("```", "").strip()
+        return {"status": "success", "data": json.loads(clean_text)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

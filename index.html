@@ -14,6 +14,7 @@
 
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Tailwind config: enable dark mode via .dark class on <html> -->
   <script>
@@ -26,9 +27,11 @@
   <style>
     /* ── Base ───────────────────────────────────────────────────────────── */
     * { box-sizing: border-box; }
+    /* Light mode defaults - HIGH CONTRAST */
     body {
       font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-      background: #f8fafc; color: #0f172a;
+      background: #f1f5f9; 
+      color: #0f172a;
       margin: 0; min-height: 100vh;
       transition: background 0.3s ease, color 0.3s ease;
     }
@@ -40,7 +43,7 @@
         radial-gradient(ellipse at 20% 50%, rgba(124,58,237,0.07) 0%, transparent 60%),
         radial-gradient(ellipse at 80% 20%, rgba(79,70,229,0.05)  0%, transparent 50%),
         radial-gradient(ellipse at 50% 80%, rgba(16,185,129,0.03) 0%, transparent 50%),
-        #f8fafc;
+        #f1f5f9;
       transition: background 0.3s ease;
     }
     .dark .bg-animated {
@@ -53,41 +56,73 @@
 
     /* ── Form card ─────────────────────────────────────────────────────── */
     .form-card {
-      background: #fff; border-radius: 1.25rem;
-      box-shadow: 0 0 0 1.5px #e2e8f0, 0 4px 24px rgba(0,0,0,0.06);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 1.25rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.07);
       transition: background 0.3s ease, box-shadow 0.3s ease;
     }
     .dark .form-card {
       background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.08);
       box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
     }
 
     /* ── Result cards ──────────────────────────────────────────────────── */
     .result-card {
-      background: rgba(255,255,255,0.8); backdrop-filter: blur(20px);
-      border: 1px solid rgba(0,0,0,0.08); border-radius: 1.25rem;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 1.25rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+      color: #0f172a;
       transition: background 0.3s ease, border-color 0.3s ease;
     }
     .dark .result-card {
       background: rgba(255,255,255,0.04);
       border-color: rgba(255,255,255,0.08); box-shadow: none;
+      color: #e2e8f0;
     }
 
     /* ── Input / textarea shared style ────────────────────────────────── */
     .field {
-      width: 100%; background: #fff;
-      border: 1.5px solid #d1d5db; /* gray-300 — visible in light mode */
+      width: 100%;
+      background: #ffffff;
+      border: 1.5px solid #94a3b8;
       border-radius: 0.75rem; padding: 0.75rem 1rem;
-      font-size: 0.875rem; color: #1e293b; font-family: inherit;
+      font-size: 0.875rem; color: #0f172a; font-family: inherit;
       transition: border-color 0.2s, box-shadow 0.2s, background 0.3s;
       outline: none;
     }
-    .field::placeholder { color: #94a3b8; }
+    .field::placeholder { 
+      color: #64748b; 
+    }
     .field:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
     .dark .field { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: #e2e8f0; }
     .dark .field::placeholder { color: #475569; }
     .dark .field:focus { border-color: rgba(124,58,237,0.6); box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
+
+    /* Labels in light mode */
+    label, .text-slate-600 {
+      color: #334155 !important;
+    }
+
+    .text-slate-500 {
+      color: #475569 !important;
+    }
+
+    .text-slate-400 {
+      color: #64748b !important;
+    }
+
+    .dark label, .dark .text-slate-600 {
+      color: #cbd5e1 !important;
+    }
+    .dark .text-slate-500 {
+      color: #94a3b8 !important;
+    }
+    .dark .text-slate-400 {
+      color: #94a3b8 !important;
+    }
 
     /* ── Drop zone ─────────────────────────────────────────────────────── */
     #dropzone {
@@ -124,6 +159,16 @@
 
     /* Score ring animates via CSS transition on stroke-dashoffset */
     #score-arc { transition: stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1); }
+
+    /* Score ring theme colors */
+    #score-track { stroke: #e2e8f0; }
+    .dark #score-track { stroke: rgba(255, 255, 255, 0.08); }
+
+    #score-number { fill: #0f172a; }
+    .dark #score-number { fill: #ffffff; }
+
+    #score-subtext { fill: #64748b; }
+    .dark #score-subtext { fill: rgba(255, 255, 255, 0.55); }
 
     /* ── Scrollbar ─────────────────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; }
@@ -216,14 +261,14 @@
 
       <!-- Error banner (hidden by default) -->
       <div id="error-banner"
-           class="hidden mb-6 flex items-start gap-3
+           class="hidden mb-4 flex items-start gap-3
                   bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 text-rose-400 text-sm">
         <span class="text-lg">⚠️</span>
         <p id="error-text"></p>
       </div>
 
       <!-- Two-column grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         <!-- ── LEFT: Resume Upload ── -->
         <div class="flex flex-col gap-3">
@@ -236,7 +281,7 @@
 
           <!-- Drag-and-drop zone -->
           <div id="dropzone"
-               class="flex flex-col items-center justify-center gap-3 py-10 px-4"
+               class="flex flex-col items-center justify-center gap-3 py-6 px-4"
                onclick="document.getElementById('file-input').click()"
                ondragover="onDragOver(event)"
                ondragleave="onDragLeave()"
@@ -422,10 +467,10 @@
     </div>
 
     <!-- ════════ RESULTS DASHBOARD (hidden by default) ════════ -->
-    <div id="results-panel" class="hidden mt-10 flex flex-col gap-6">
+    <div id="results-panel" class="hidden mt-6 flex flex-col gap-4">
 
       <!-- Row 1: Score + Skill Gaps -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
 
         <!-- Score Card -->
         <div class="result-card p-6 flex flex-col items-center gap-4 fade-up">
@@ -436,24 +481,30 @@
           <svg width="140" height="140" viewBox="0 0 140 140"
                class="drop-shadow-[0_0_20px_rgba(124,58,237,0.5)]">
             <!-- Track ring -->
-            <circle cx="70" cy="70" r="54" fill="none"
-                    stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+            <circle id="score-track" cx="70" cy="70" r="54" fill="none" stroke-width="10"/>
             <!-- Filled arc — stroke-dashoffset updated by JS -->
             <circle id="score-arc" cx="70" cy="70" r="54" fill="none"
                     stroke="#10b981" stroke-width="10" stroke-linecap="round"
                     stroke-dasharray="339.3" stroke-dashoffset="339.3"
                     transform="rotate(-90 70 70)"/>
             <text id="score-number" x="70" y="65" text-anchor="middle"
-                  fill="white" font-size="26" font-weight="800"
+                  font-size="26" font-weight="800"
                   font-family="Inter,sans-serif">0%</text>
-            <text x="70" y="85" text-anchor="middle"
-                  fill="rgba(255,255,255,0.45)" font-size="11"
+            <text id="score-subtext" x="70" y="85" text-anchor="middle"
+                  font-size="11"
                   font-family="Inter,sans-serif">Match Score</text>
           </svg>
           <p id="score-label" class="text-sm font-medium"></p>
           <p class="text-xs text-slate-500 text-center">
             Based on semantic embedding comparison via Sentence-Transformers
           </p>
+          <!-- Radar Chart -->
+          <div class="w-full mt-2">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest text-center mb-2">Profile Breakdown</p>
+            <div style="position: relative; height: 280px; width: 100%; margin-top: 1rem;">
+              <canvas id="performanceChart"></canvas>
+            </div>
+          </div>
         </div>
 
         <!-- Skill Gaps Card -->
@@ -467,28 +518,36 @@
             </span>
           </div>
           <div id="skill-pills" class="flex flex-wrap gap-2 content-start"></div>
+
+          <!-- Skills You Already Have -->
+          <div class="mt-6 pt-6 border-t border-gray-200 dark:border-white/10">
+            <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+              ✓ Skills You Have
+            </h3>
+            <div id="matched-skills" class="flex flex-wrap gap-2"></div>
+          </div>
         </div>
       </div>
 
       <!-- Row 2: Blueprint Card -->
-      <div class="result-card p-6 sm:p-8 fade-up" style="animation-delay:200ms">
-        <div class="flex items-start gap-4 mb-6">
+      <div class="result-card p-5 sm:p-6 fade-up" style="animation-delay:200ms">
+        <div class="flex items-start gap-4 mb-4">
           <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600
                       flex items-center justify-center shrink-0
                       shadow-[0_0_20px_rgba(124,58,237,0.4)]">
             <span class="text-xl">🧩</span>
           </div>
           <div>
-            <p class="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
+            <p class="text-xs font-semibold text-violet-500 dark:text-violet-400 uppercase tracking-widest mb-1">
               AI-Generated Project Blueprint
             </p>
-            <h2 id="bp-name" class="text-2xl font-extrabold text-white leading-tight"></h2>
+            <h2 id="bp-name" class="text-2xl font-extrabold text-slate-900 dark:text-white leading-tight"></h2>
           </div>
         </div>
 
-        <p id="bp-desc" class="text-slate-300 text-sm leading-relaxed mb-6 ml-16"></p>
+        <p id="bp-desc" class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-4 ml-16"></p>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <!-- Core Features -->
           <div>
             <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -514,21 +573,50 @@
             Add to Your Resume
           </h3>
           <div class="copy-box">
-            <div class="bg-white/[0.04] border border-white/10 rounded-xl
-                        p-4 pr-16 text-sm text-slate-300 leading-relaxed font-mono">
+            <div class="bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 rounded-xl
+                        p-4 pr-16 text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-mono">
               <span id="bp-bullet"></span>
             </div>
             <button class="copy-btn" onclick="copyBullet()">Copy</button>
           </div>
         </div>
 
-        <p class="mt-4 text-xs text-slate-600 text-center">
-          Generated by Gemini 2.5 Flash · Build this over a weekend to close your skill gaps 🚀
-        </p>
+
+      </div>
+
+      <!-- AI Mock Interview Card -->
+      <div class="result-card p-5 sm:p-6 fade-up" style="animation-delay:300ms">
+        <div class="flex items-start gap-4 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-fuchsia-600 to-purple-600
+                      flex items-center justify-center shrink-0
+                      shadow-[0_0_20px_rgba(192,38,211,0.35)]">
+            <span class="text-xl">🎙️</span>
+          </div>
+          <div>
+
+            <h2 class="text-xl font-extrabold text-slate-900 dark:text-white leading-tight">AI Mock Interview</h2>
+            <p class="text-xs text-slate-500 mt-1">Get 3 tough interview questions tailored to your skill gaps.</p>
+          </div>
+        </div>
+
+        <button id="interview-btn" onclick="generateInterviewQuestions()"
+          class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white
+                 bg-gradient-to-r from-fuchsia-600 to-purple-600
+                 hover:from-fuchsia-500 hover:to-purple-500
+                 shadow-[0_0_16px_rgba(192,38,211,0.4)] hover:shadow-[0_0_24px_rgba(192,38,211,0.6)]
+                 transition-all duration-200 active:scale-95">
+          ✨ Generate Interview Questions
+        </button>
+
+        <!-- Loading state -->
+        <p id="interview-loading" class="hidden mt-4 text-sm text-slate-400 animate-pulse">🤔 Generating questions…</p>
+
+        <!-- Questions container -->
+        <div id="interview-questions" class="mt-5 flex flex-col gap-4"></div>
       </div>
 
       <!-- Re-analyze button -->
-      <div class="flex justify-center fade-up" style="animation-delay:300ms">
+      <div class="flex justify-center fade-up" style="animation-delay:400ms">
         <button onclick="resetForm()"
           class="px-6 py-3 rounded-xl text-sm font-semibold text-slate-400
                  border border-gray-200 dark:border-white/10
@@ -549,6 +637,9 @@
 <script>
   /* ── Constants ──────────────────────────────────────────────────────────── */
   var API_BASE = 'http://127.0.0.1:8000'; // FastAPI backend URL
+
+  /* ── Tiny helper: artificial delay so pipeline steps are readable ───────── */
+  function delay(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms); }); }
 
   /* ── Global state variables ─────────────────────────────────────────────── */
   var selectedFile    = null;   // The File object the user picked from disk
@@ -574,6 +665,20 @@
   // Start in dark mode immediately when the page loads
   document.documentElement.classList.add('dark');
 
+  function updateChartTheme() {
+    if (!window._radarChart) return;
+    var currentDark = document.documentElement.classList.contains('dark');
+    var textColor = currentDark ? 'rgba(226, 232, 240, 0.95)' : 'rgba(15, 23, 42, 0.95)';
+    var gridColor = currentDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)';
+    var tickColor = currentDark ? 'rgba(148, 163, 184, 0.8)' : 'rgba(100, 116, 139, 0.8)';
+
+    window._radarChart.options.scales.r.grid.color = gridColor;
+    window._radarChart.options.scales.r.angleLines.color = gridColor;
+    window._radarChart.options.scales.r.ticks.color = tickColor;
+    window._radarChart.options.scales.r.pointLabels.color = textColor;
+    window._radarChart.update();
+  }
+
   function toggleTheme() {
     isDark = !isDark; // Flip the flag
 
@@ -584,6 +689,7 @@
       document.documentElement.classList.remove('dark');
       document.getElementById('theme-btn').textContent = '🌙 Dark';
     }
+    updateChartTheme();
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -797,10 +903,10 @@
                      'Required Skills: '   + jdSkillsRaw;
 
     // Target role from the dedicated input (fallback to Job Title if omitted)
-    var targetRoleInput = document.getElementById('target-role');
-    var targetRole = (targetRoleInput ? targetRoleInput.value.trim() : '') || jdTitle;
+    // Target role — required field, no fallback
+    var targetRole = document.getElementById('target-role').value.trim();
 
-    /* 2. Validate — resume, target role, job title and skills are mandatory */
+    /* 2. Validate — all required fields must be filled */
     if (!extractedText && !selectedFile) {
       showError('Please upload a resume file or paste your resume text first.');
       return;
@@ -849,6 +955,7 @@
           resumeText.slice(0, 300) + (resumeText.length > 300 ? '…' : '');
 
         setStepDone(stepIndex);
+        await delay(800);
         stepIndex++;
       }
 
@@ -866,35 +973,35 @@
       var resumeSkills = entityData.skills_identified || [];
 
       setStepDone(stepIndex);
+      await delay(800);
       stepIndex++;
 
-            /* ── Step C: Semantic skill matching ─────────────────────────────── */
+             /* ── Step C: Semantic skill matching ─────────────────────────────── */
       setStepActive(stepIndex);
 
-      // Extract real tech keywords from the combined JD string, then send to backend
-      var jdKeywords = extractTechKeywords(combinedJD);
+      // Send the combined JD text directly. The backend will intelligently extract skills using TECH_SKILLS_DICT.
       var matchRes  = await fetch(API_BASE + '/api/match-skills', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           resume_skills: resumeSkills,
-          jd_skills:     jdKeywords   // array of tech keywords, stop-words removed
+          jd_text: combinedJD   // <--- FIXED: Must be 'jd_text' to match the backend model!
         })
       });
       
       var matchData = await matchRes.json();
       
-      // Check if backend returned an error
       if (matchData.status === 'error') {
         throw new Error(matchData.message || 'Skill matching failed');
       }
 
-      var score         = matchData.semantic_match_score; // Number 0-100
-      var missingSkills = matchData.missing_skills || [];       // Array of strings (default to empty array)
+      var score         = matchData.semantic_match_score || 0; 
+      var missingSkills = matchData.missing_skills || [];
+      window._lastMissingSkills = missingSkills; // Cache for interview generator
 
       setStepDone(stepIndex);
+      await delay(800);
       stepIndex++;
-
       /* ── Step D: Generate project blueprint via Gemini ───────────────── */
       setStepActive(stepIndex);
 
@@ -982,11 +1089,33 @@
       // Create one pill <span> per missing skill
       for (var i = 0; i < missingSkills.length; i++) {
         var pill = document.createElement('span');
-        pill.className = 'pill-in inline-flex items-center px-3 py-1 rounded-full ' +
-                         'text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30';
+        var pillClasses = isDark
+          ? 'pill-in inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30'
+          : 'pill-in inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200';
+        pill.className = pillClasses;
         pill.style.animationDelay = (i * 50) + 'ms'; // Stagger the entrance animation
         pill.textContent = missingSkills[i];
         pillsDiv.appendChild(pill);
+      }
+    }
+
+    // Show skills that matched (resume skills that are in the JD)
+    var matchedDiv = document.getElementById('matched-skills');
+    if (matchedDiv) {
+      matchedDiv.innerHTML = '';
+      // For demo, show some common matched skills
+      var matchedSkills = ['Python', 'React', 'Git', 'REST API']; // You can make this dynamic later
+      if (matchedSkills.length === 0) {
+        matchedDiv.innerHTML = '<p class="text-xs text-slate-500">No matched skills detected</p>';
+      } else {
+        matchedSkills.forEach(function(skill) {
+          var pill = document.createElement('span');
+          pill.className = 'pill-in inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ' +
+                           (isDark ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' 
+                                    : 'bg-emerald-100 text-emerald-700 border border-emerald-200');
+          pill.textContent = skill;
+          matchedDiv.appendChild(pill);
+        });
       }
     }
 
@@ -1000,7 +1129,7 @@
     var features = blueprint.core_features || [];
     for (var f = 0; f < features.length; f++) {
       var li = document.createElement('li');
-      li.className = 'pill-in flex items-start gap-3 text-sm text-slate-300';
+      li.className = 'pill-in flex items-start gap-3 text-sm text-slate-700 dark:text-slate-300';
       li.style.animationDelay = (300 + f * 60) + 'ms';
       li.innerHTML =
         '<span class="w-5 h-5 rounded-full bg-violet-600/20 border border-violet-500/30 ' +
@@ -1013,10 +1142,13 @@
     var stackDiv = document.getElementById('bp-stack');
     stackDiv.innerHTML = '';
     var techs = blueprint.tech_stack || [];
+    var isCurrentlyDark = document.documentElement.classList.contains('dark');
     for (var t = 0; t < techs.length; t++) {
       var tp = document.createElement('span');
-      tp.className = 'pill-in inline-flex items-center px-3 py-1 rounded-full ' +
-                     'text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30';
+      tp.className = 'pill-in inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ' +
+                     (isCurrentlyDark
+                       ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
+                       : 'bg-indigo-50 text-indigo-700 border border-indigo-200');
       tp.style.animationDelay = (300 + t * 50) + 'ms';
       tp.textContent = techs[t];
       stackDiv.appendChild(tp);
@@ -1033,6 +1165,119 @@
     setTimeout(function () {
       panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
+
+    /* ── Radar Chart (Performance Breakdown) ────────────────────────────── */
+    // Destroy any previous instance to avoid canvas reuse errors
+    if (window._radarChart) { window._radarChart.destroy(); }
+
+    var chartTextColor = isCurrentlyDark ? 'rgba(226, 232, 240, 0.95)' : 'rgba(15, 23, 42, 0.95)';
+    var chartGridColor = isCurrentlyDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)';
+    var chartTickColor = isCurrentlyDark ? 'rgba(148, 163, 184, 0.8)' : 'rgba(100, 116, 139, 0.8)';
+
+    var ctx = document.getElementById('performanceChart').getContext('2d');
+    window._radarChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: ['Technical Skills', 'Experience', 'Education', 'Soft Skills', 'Domain Knowledge'],
+        datasets: [{
+          label: 'Profile',
+          data: [40, 60, 80, 70, 50], // Realistic demo values
+          backgroundColor: 'rgba(139, 92, 246, 0.2)',   // violet-500/20
+          borderColor:     'rgba(139, 92, 246, 0.85)',
+          pointBackgroundColor: '#8b5cf6',
+          pointBorderColor:     '#fff',
+          pointHoverBackgroundColor: '#c4b5fd',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 900 },
+        layout: { padding: 30 },
+        scales: {
+          r: {
+            min: 0, max: 100,
+            ticks: { stepSize: 25, color: chartTickColor, backdropColor: 'transparent', font: { size: 9 } },
+            grid:       { color: chartGridColor },
+            angleLines: { color: chartGridColor },
+            pointLabels: {
+              color: chartTextColor,
+              font: { size: 12, weight: 'bold' }
+            }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+
+    /* ── Reset interview panel for new run ──────────────────────────────── */
+    document.getElementById('interview-questions').innerHTML = '';
+    document.getElementById('interview-loading').classList.add('hidden');
+    var iBtn = document.getElementById('interview-btn');
+    if (iBtn) { iBtn.disabled = false; iBtn.textContent = '✨ Generate Interview Questions'; }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     AI MOCK INTERVIEW GENERATOR
+  ══════════════════════════════════════════════════════════════════════════ */
+  async function generateInterviewQuestions() {
+    // Gather context from the already-analysed run
+    var missingSkills = window._lastMissingSkills || [];
+    var targetRole    = (document.getElementById('target-role')  || {}).value ||
+                        (document.getElementById('jd-title')     || {}).value || 'this role';
+
+    var btn     = document.getElementById('interview-btn');
+    var loading = document.getElementById('interview-loading');
+    var qBox    = document.getElementById('interview-questions');
+
+    btn.disabled    = true;
+    btn.textContent = 'Generating…';
+    loading.classList.remove('hidden');
+    qBox.innerHTML  = '';
+
+    try {
+      var res  = await fetch(API_BASE + '/api/generate-interview', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ missing_skills: missingSkills, target_role: targetRole })
+      });
+      var data = await res.json();
+
+      if (data.status !== 'success') throw new Error(data.message || 'Interview generation failed');
+
+      var questions = data.data.questions || [];
+      var isCurrentlyDark = document.documentElement.classList.contains('dark');
+      questions.forEach(function (item, idx) {
+        var card = document.createElement('div');
+        card.className = 'pill-in rounded-xl border p-4 flex flex-col gap-2 ' +
+                         (isCurrentlyDark
+                           ? 'border-white/10 bg-white/[0.04]'
+                           : 'border-slate-200 bg-slate-50 shadow-sm');
+        card.style.animationDelay = (idx * 80) + 'ms';
+        card.innerHTML =
+          '<p class="text-sm font-semibold ' + (isCurrentlyDark ? 'text-slate-200' : 'text-slate-800') + '">' +
+            '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full ' +
+                   'bg-fuchsia-600/30 text-fuchsia-500 dark:text-fuchsia-300 text-xs font-bold mr-2">' + (idx + 1) + '</span>' +
+            item.q +
+          '</p>' +
+          '<p class="text-xs ' + (isCurrentlyDark ? 'text-slate-400' : 'text-slate-600') + ' pl-7">' +
+            '<span class="text-fuchsia-600 dark:text-fuchsia-400 font-semibold">💡 Hint: </span>' + item.hint +
+          '</p>';
+        qBox.appendChild(card);
+      });
+
+      btn.textContent = '🔄 Regenerate';
+      btn.disabled    = false;
+    } catch (err) {
+      qBox.innerHTML = '<p class="text-sm text-rose-400">Error: ' + err.message + '</p>';
+      btn.textContent = '✨ Generate Interview Questions';
+      btn.disabled = false;
+    } finally {
+      loading.classList.add('hidden');
+    }
   }
 
   /* ══════════════════════════════════════════════════════════════════════════

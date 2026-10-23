@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+  
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StepUp — AI Career Intelligence Platform</title>
+  <meta name="description" content="StepUp uses AI to analyze your resume, detect skill gaps, and generate a weekend project blueprint." />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind config: enable dark mode via .dark class on <html> -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { fontFamily: { sans: ['Inter','ui-sans-serif','system-ui'] } } }
+    };
+  </script>
+
+  <style>
+    /* ── Base ───────────────────────────────────────────────────────────── */
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: #f8fafc; color: #0f172a;
+      margin: 0; min-height: 100vh;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    .dark body { background: #0a0a1a; color: #e2e8f0; }
+
+    /* ── Animated gradient background ─────────────────────────────────── */
+    .bg-animated {
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(124,58,237,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(79,70,229,0.05)  0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(16,185,129,0.03) 0%, transparent 50%),
+        #f8fafc;
+      transition: background 0.3s ease;
+    }
+    .dark .bg-animated {
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(124,58,237,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(79,70,229,0.10)  0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(16,185,129,0.05) 0%, transparent 50%),
+        #0a0a1a;
+    }
+
+    /* ── Form card ─────────────────────────────────────────────────────── */
+    .form-card {
+      background: #fff; border-radius: 1.25rem;
+      box-shadow: 0 0 0 1.5px #e2e8f0, 0 4px 24px rgba(0,0,0,0.06);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    .dark .form-card {
+      background: rgba(255,255,255,0.03);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    /* ── Result cards ──────────────────────────────────────────────────── */
+    .result-card {
+      background: rgba(255,255,255,0.8); backdrop-filter: blur(20px);
+      border: 1px solid rgba(0,0,0,0.08); border-radius: 1.25rem;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+    .dark .result-card {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.08); box-shadow: none;
+    }
+
+    /* ── Input / textarea shared style ────────────────────────────────── */
+    .field {
+      width: 100%; background: #fff;
+      border: 1.5px solid #d1d5db; /* gray-300 — visible in light mode */
+      border-radius: 0.75rem; padding: 0.75rem 1rem;
+      font-size: 0.875rem; color: #1e293b; font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.3s;
+      outline: none;
+    }
+    .field::placeholder { color: #94a3b8; }
+    .field:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
+    .dark .field { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: #e2e8f0; }
+    .dark .field::placeholder { color: #475569; }
+    .dark .field:focus { border-color: rgba(124,58,237,0.6); box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
+
+    /* ── Drop zone ─────────────────────────────────────────────────────── */
+    #dropzone {
+      border: 2px dashed #d1d5db; border-radius: 0.75rem;
+      background: #fff; cursor: pointer; transition: all 0.2s ease;
+    }
+    #dropzone:hover       { border-color: #7c3aed; background: #faf5ff; }
+    #dropzone.dragover    { border-color: #7c3aed; background: rgba(124,58,237,0.08); transform: scale(1.01); }
+    .dark #dropzone       { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.15); }
+    .dark #dropzone:hover { border-color: rgba(124,58,237,0.5); background: rgba(124,58,237,0.05); }
+    .dark #dropzone.dragover { border-color: #7c3aed; background: rgba(124,58,237,0.1); }
+
+    /* ── Animations ────────────────────────────────────────────────────── */
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fade-up 0.5s ease forwards; }
+
+    @keyframes pill-in {
+      from { opacity: 0; transform: translateY(6px) scale(0.9); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .pill-in { animation: pill-in 0.3s ease forwards; }
+
+    @keyframes pulse-dot {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.5; transform: scale(1.4); }
+    }
+    .pulse-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 0.8s linear infinite; }
+
+    /* Score ring animates via CSS transition on stroke-dashoffset */
+    #score-arc { transition: stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1); }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.4); border-radius: 3px; }
+
+    /* ── Header ────────────────────────────────────────────────────────── */
+    header {
+      background: rgba(255,255,255,0.7); border-bottom: 1px solid rgba(0,0,0,0.06);
+      backdrop-filter: blur(20px); transition: background 0.3s ease, border-color 0.3s ease;
+    }
+    .dark header { background: rgba(0,0,0,0.3); border-bottom-color: rgba(255,255,255,0.06); }
+
+    /* ── Copy-box hover-reveal button ─────────────────────────────────── */
+    .copy-box { position: relative; }
+    .copy-box .copy-btn {
+      position: absolute; top: 0.75rem; right: 0.75rem;
+      padding: 0.25rem 0.6rem; border-radius: 0.5rem;
+      font-size: 0.7rem; font-weight: 600;
+      background: rgba(124,58,237,0.8); color: white;
+      border: none; cursor: pointer; opacity: 0; transition: opacity 0.2s;
+    }
+    .copy-box:hover .copy-btn { opacity: 1; }
+
+    /* ── Step tracker ──────────────────────────────────────────────────── */
+    .step-dot {
+      width: 1.75rem; height: 1.75rem; border-radius: 9999px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
+      background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3);
+      transition: background 0.4s, color 0.4s, box-shadow 0.4s;
+    }
+    .step-dot.active { background: #7c3aed; color: #fff; box-shadow: 0 0 12px rgba(124,58,237,0.7); }
+    .step-dot.done   { background: #10b981; color: #fff; box-shadow: 0 0 12px rgba(16,185,129,0.6); }
+    .step-label { font-size: 0.875rem; font-weight: 500; color: rgba(255,255,255,0.3); transition: color 0.4s; }
+    .step-label.active { color: #c4b5fd; }
+    .step-label.done   { color: #6ee7b7; }
+  </style>
+</head>
+
+<body>
+<div class="bg-animated min-h-screen">
+
+  <!-- ════════════════════ HEADER ════════════════════ -->
+  <header class="sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+
+      <!-- Left: Logo + Name -->
+      <div class="flex items-center gap-3">
+        <img src="logo.png" alt="StepUp Logo" class="h-10 w-auto rounded-lg"
+             onerror="this.style.display='none'" />
+        <span class="text-lg font-extrabold bg-gradient-to-r from-violet-600 to-indigo-500
+                     bg-clip-text text-transparent"
+              style="-webkit-background-clip:text;">StepUp</span>
+        <span class="hidden sm:inline text-xs font-medium text-slate-400">AI Career Intelligence</span>
+      </div>
+
+      <!-- Right: Theme Toggle -->
+      <button id="theme-btn" onclick="toggleTheme()"
+        class="px-3 py-1.5 rounded-lg text-sm font-medium
+               bg-gray-100 hover:bg-gray-200 text-slate-700
+               dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-slate-200
+               transition-colors duration-200">
+        ☀️ Light
+      </button>
+    </div>
+  </header>
+
+  <!-- ════════════════════ HERO ════════════════════ -->
+  <section class="max-w-6xl mx-auto px-6 pt-16 pb-10 text-center">
+    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full
+                bg-violet-500/10 border border-violet-500/20
+                text-violet-600 dark:text-violet-300 text-xs font-medium mb-6">
+      <span class="w-1.5 h-1.5 rounded-full bg-violet-400 pulse-dot"></span>
+      Powered by spaCy · Sentence-Transformers · Gemini 2.5 Flash
+    </div>
+
+    <h1 class="text-4xl sm:text-5xl font-extrabold text-slate-900 dark:text-white leading-tight mb-4">
+      Land your dream job with
+      <span class="bg-gradient-to-r from-violet-600 via-purple-500 to-indigo-500
+                   dark:from-violet-400 dark:via-purple-400 dark:to-indigo-400
+                   bg-clip-text text-transparent"
+            style="-webkit-background-clip:text;">AI-powered</span>
+      insights
+    </h1>
+    <p class="text-slate-500 dark:text-slate-400 text-lg max-w-2xl mx-auto">
+      Upload your resume or paste your text. StepUp's three-model AI pipeline will
+      analyze your fit, find skill gaps, and generate a personalized project blueprint — in seconds.
+    </p>
+  </section>
+
+  <!-- ════════════════════ INPUT FORM ════════════════════ -->
+  <section class="max-w-6xl mx-auto px-6 pb-16">
+    <div class="form-card p-6 sm:p-8">
+
+      <!-- Error banner (hidden by default) -->
+      <div id="error-banner"
+           class="hidden mb-6 flex items-start gap-3
+                  bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 text-rose-400 text-sm">
+        <span class="text-lg">⚠️</span>
+        <p id="error-text"></p>
+      </div>
+
+      <!-- Two-column grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- ── LEFT: Resume Upload ── -->
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">📄 Resume</label>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold
+                         bg-violet-500/10 text-violet-600 dark:text-violet-400
+                         border border-violet-500/20">PDF / DOCX / TXT</span>
+          </div>
+
+          <!-- Drag-and-drop zone -->
+          <div id="dropzone"
+               class="flex flex-col items-center justify-center gap-3 py-10 px-4"
+               onclick="document.getElementById('file-input').click()"
+               ondragover="onDragOver(event)"
+               ondragleave="onDragLeave()"
+               ondrop="onDrop(event)">
+            <div class="w-14 h-14 rounded-2xl bg-gray-50 dark:bg-white/5 flex items-center justify-center">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                   stroke="rgba(100,116,139,0.7)" stroke-width="1.8"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div class="text-center">
+              <p class="text-sm font-semibold text-slate-500 dark:text-slate-300">Drag &amp; drop your resume</p>
+              <p class="text-xs text-slate-400 mt-1">or click to browse · PDF, DOCX, TXT supported</p>
+            </div>
+          </div>
+          <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt"
+                 class="hidden" onchange="onFileSelected(event)" />
+
+          <!-- File card (hidden until a file is picked) -->
+          <div id="file-card" class="hidden flex flex-col gap-2">
+            <div class="flex items-center gap-3 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+              <span id="file-icon" class="text-2xl">📄</span>
+              <div class="flex-1 min-w-0">
+                <p id="file-name" class="text-sm font-semibold text-slate-800 dark:text-white truncate"></p>
+                <p id="file-size" class="text-xs text-slate-400 mt-0.5"></p>
+              </div>
+              <button onclick="removeFile()"
+                class="px-3 py-1 rounded-lg text-xs font-semibold text-rose-500
+                       border border-rose-400/30 hover:bg-rose-500/10 transition-colors">
+                Remove
+              </button>
+            </div>
+
+            <!-- Collapsible extracted text preview -->
+            <div class="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
+              <button onclick="togglePreview()"
+                class="w-full flex items-center justify-between px-4 py-2.5
+                       bg-gray-50 dark:bg-white/[0.02] text-xs font-medium
+                       text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                <span>Extracted text preview</span>
+                <span id="preview-chevron">▼ Expand</span>
+              </button>
+              <div id="preview-box"
+                   class="hidden px-4 py-3 bg-gray-50 dark:bg-white/[0.02]
+                          text-xs text-slate-500 dark:text-slate-400
+                          font-mono leading-relaxed border-t border-gray-200 dark:border-white/[0.05]
+                          max-h-32 overflow-y-auto"></div>
+            </div>
+          </div>
+
+          <!-- Fallback: paste text toggle -->
+          <button onclick="toggleFallback()"
+            class="text-xs text-slate-400 hover:text-violet-500
+                   underline underline-offset-2 self-start mt-1 transition-colors">
+            ▼ Prefer to paste text instead?
+          </button>
+          <div id="fallback-area" class="hidden">
+            <textarea id="resume-text" rows="6"
+              placeholder="Paste your resume text here as a fallback…"
+              class="field resize-none leading-relaxed"
+              oninput="onFallbackText()"></textarea>
+          </div>
+        </div><!-- end LEFT -->
+
+        <!-- ── RIGHT: JD + Target Role ── -->
+        <div class="flex flex-col gap-6">
+          <div class="flex flex-col gap-2">
+            <label for="jd-input" class="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              💼 Job Description
+            </label>
+            <textarea id="jd-input" rows="14"
+              placeholder="Paste the full job description here... (Include responsibilities, required skills, and qualifications for best results)"
+              class="field resize-none leading-relaxed"></textarea>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="target-role" class="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              🎯 Target Role
+            </label>
+            <input id="target-role" type="text"
+              placeholder="e.g. Backend Developer, ML Engineer, Frontend Developer…"
+              class="field" />
+          </div>
+        </div><!-- end RIGHT -->
+      </div><!-- end grid -->
+
+      <!-- CTA Button -->
+      <div class="mt-8 flex justify-center">
+        <button id="analyze-btn" onclick="runAnalysis()"
+          class="group px-8 py-4 rounded-2xl font-bold text-base text-white
+                 bg-gradient-to-r from-violet-600 to-indigo-600
+                 shadow-[0_0_30px_rgba(124,58,237,0.4)]
+                 hover:shadow-[0_0_50px_rgba(124,58,237,0.6)]
+                 hover:scale-[1.02] active:scale-[0.98]
+                 disabled:opacity-60 disabled:cursor-not-allowed
+                 transition-all duration-200 flex items-center gap-2">
+          <span id="btn-label">✨ Analyze &amp; Generate Blueprint</span>
+          <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform"
+               viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+    </div><!-- end form-card -->
+
+    <!-- ════════ LOADING PANEL (hidden by default) ════════ -->
+    <div id="loading-panel"
+         class="hidden mt-8 result-card p-8 flex flex-col items-center gap-6">
+      <div class="w-14 h-14 rounded-2xl bg-violet-600/20 border border-violet-500/30
+                  flex items-center justify-center shadow-[0_0_20px_rgba(124,58,237,0.3)]">
+        <svg class="spin w-7 h-7 text-violet-400" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
+          <path class="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
+        </svg>
+      </div>
+      <div class="text-center">
+        <p class="font-semibold text-white text-lg">Running AI Pipeline</p>
+        <p class="text-slate-500 text-sm mt-1">Three ML models working in sequence…</p>
+      </div>
+      <!-- JS builds these steps dynamically -->
+      <div id="step-list" class="flex flex-col gap-3 w-full max-w-xs mx-auto"></div>
+    </div>
+
+    <!-- ════════ RESULTS DASHBOARD (hidden by default) ════════ -->
+    <div id="results-panel" class="hidden mt-10 flex flex-col gap-6">
+
+      <!-- Row 1: Score + Skill Gaps -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Score Card -->
+        <div class="result-card p-6 flex flex-col items-center gap-4 fade-up">
+          <div class="w-full flex items-center justify-between mb-2">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Fit Score</h2>
+            <span class="text-xs text-slate-400">Semantic Similarity</span>
+          </div>
+          <svg width="140" height="140" viewBox="0 0 140 140"
+               class="drop-shadow-[0_0_20px_rgba(124,58,237,0.5)]">
+            <!-- Track ring -->
+            <circle cx="70" cy="70" r="54" fill="none"
+                    stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+            <!-- Filled arc — stroke-dashoffset updated by JS -->
+            <circle id="score-arc" cx="70" cy="70" r="54" fill="none"
+                    stroke="#10b981" stroke-width="10" stroke-linecap="round"
+                    stroke-dasharray="339.3" stroke-dashoffset="339.3"
+                    transform="rotate(-90 70 70)"/>
+            <text id="score-number" x="70" y="65" text-anchor="middle"
+                  fill="white" font-size="26" font-weight="800"
+                  font-family="Inter,sans-serif">0%</text>
+            <text x="70" y="85" text-anchor="middle"
+                  fill="rgba(255,255,255,0.45)" font-size="11"
+                  font-family="Inter,sans-serif">Match Score</text>
+          </svg>
+          <p id="score-label" class="text-sm font-medium"></p>
+          <p class="text-xs text-slate-500 text-center">
+            Based on semantic embedding comparison via Sentence-Transformers
+          </p>
+        </div>
+
+        <!-- Skill Gaps Card -->
+        <div class="result-card p-6 flex flex-col gap-4 fade-up" style="animation-delay:100ms">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Skill Gaps</h2>
+            <span id="gap-count-badge"
+                  class="text-xs px-2 py-0.5 rounded-full
+                         bg-rose-500/15 text-rose-400 border border-rose-500/20">
+              0 missing
+            </span>
+          </div>
+          <div id="skill-pills" class="flex flex-wrap gap-2 content-start"></div>
+        </div>
+      </div>
+
+      <!-- Row 2: Blueprint Card -->
+      <div class="result-card p-6 sm:p-8 fade-up" style="animation-delay:200ms">
+        <div class="flex items-start gap-4 mb-6">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600
+                      flex items-center justify-center shrink-0
+                      shadow-[0_0_20px_rgba(124,58,237,0.4)]">
+            <span class="text-xl">🧩</span>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
+              AI-Generated Project Blueprint
+            </p>
+            <h2 id="bp-name" class="text-2xl font-extrabold text-white leading-tight"></h2>
+          </div>
+        </div>
+
+        <p id="bp-desc" class="text-slate-300 text-sm leading-relaxed mb-6 ml-16"></p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Core Features -->
+          <div>
+            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <span class="w-4 h-4 rounded bg-violet-500/20 inline-flex items-center justify-center text-violet-400 text-[10px]">✦</span>
+              Core Features
+            </h3>
+            <ul id="bp-features" class="flex flex-col gap-2"></ul>
+          </div>
+          <!-- Tech Stack -->
+          <div>
+            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <span class="w-4 h-4 rounded bg-indigo-500/20 inline-flex items-center justify-center text-indigo-400 text-[10px]">⚙</span>
+              Tech Stack
+            </h3>
+            <div id="bp-stack" class="flex flex-wrap gap-2"></div>
+          </div>
+        </div>
+
+        <!-- Resume Bullet Point -->
+        <div class="mt-6">
+          <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <span class="w-4 h-4 rounded bg-emerald-500/20 inline-flex items-center justify-center text-emerald-400 text-[10px]">✎</span>
+            Add to Your Resume
+          </h3>
+          <div class="copy-box">
+            <div class="bg-white/[0.04] border border-white/10 rounded-xl
+                        p-4 pr-16 text-sm text-slate-300 leading-relaxed font-mono">
+              <span id="bp-bullet"></span>
+            </div>
+            <button class="copy-btn" onclick="copyBullet()">Copy</button>
+          </div>
+        </div>
+
+        <p class="mt-4 text-xs text-slate-600 text-center">
+          Generated by Gemini 2.5 Flash · Build this over a weekend to close your skill gaps 🚀
+        </p>
+      </div>
+
+      <!-- Re-analyze button -->
+      <div class="flex justify-center fade-up" style="animation-delay:300ms">
+        <button onclick="resetForm()"
+          class="px-6 py-3 rounded-xl text-sm font-semibold text-slate-400
+                 border border-gray-200 dark:border-white/10
+                 hover:border-violet-400 hover:text-violet-500 transition-all duration-200">
+          ← Analyze Another Role
+        </button>
+      </div>
+    </div><!-- end results-panel -->
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-gray-100 dark:border-white/[0.04] py-8 text-center text-xs text-slate-400">
+    StepUp · AI Career Intelligence Platform · HTML5 + Tailwind CSS + Vanilla JS
+  </footer>
+</div><!-- end app-root -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     VANILLA JAVASCRIPT
+     Written with simple named functions — easy to explain line-by-line.
+════════════════════════════════════════════════════════════════════════════ -->
+<script>
+  /* ── Constants ──────────────────────────────────────────────────────────── */
+  var API_BASE = 'http://127.0.0.1:8000'; // FastAPI backend URL
+
+  /* ── Global state variables ─────────────────────────────────────────────── */
+  var selectedFile    = null;   // The File object the user picked from disk
+  var extractedText   = null;   // Text extracted from the file by the backend
+  var isDark          = true;   // Tracks current theme (starts dark)
+  var previewOpen     = false;  // Is the extracted-text preview expanded?
+  var fallbackVisible = false;  // Is the paste-text fallback textarea visible?
+
+  /* ── Step labels for the loading panel ─────────────────────────────────── */
+  var ALL_STEPS = [
+    'Uploading & extracting resume…',
+    'Extracting skills from resume…',
+    'Semantic skill matching…',
+    'Generating AI blueprint…',
+  ];
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     THEME TOGGLE
+     We add/remove the "dark" class on <html>.
+     Tailwind's darkMode:"class" config reads this class.
+  ══════════════════════════════════════════════════════════════════════════ */
+
+  // Start in dark mode immediately when the page loads
+  document.documentElement.classList.add('dark');
+
+  function toggleTheme() {
+    isDark = !isDark; // Flip the flag
+
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.getElementById('theme-btn').textContent = '☀️ Light';
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.getElementById('theme-btn').textContent = '🌙 Dark';
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     FILE DRAG-AND-DROP HANDLERS
+  ══════════════════════════════════════════════════════════════════════════ */
+
+  function onDragOver(event) {
+    event.preventDefault(); // Must call this to allow the drop event to fire
+    document.getElementById('dropzone').classList.add('dragover');
+  }
+
+  function onDragLeave() {
+    document.getElementById('dropzone').classList.remove('dragover');
+  }
+
+  function onDrop(event) {
+    event.preventDefault(); // Stops the browser from opening the file directly
+    document.getElementById('dropzone').classList.remove('dragover');
+    var file = event.dataTransfer.files[0]; // Get the first dropped file
+    if (file) { processFile(file); }
+  }
+
+  function onFileSelected(event) {
+    // This runs when the user picks a file via the hidden <input type="file">
+    var file = event.target.files[0];
+    if (file) { processFile(file); }
+  }
+
+  function processFile(file) {
+    selectedFile = file; // Store for later use in the API call
+
+    // Pick an emoji based on the file extension
+    var icons = { pdf: '📄', docx: '📝', doc: '📝', txt: '📃' };
+    var ext   = file.name.split('.').pop().toLowerCase();
+
+    // Fill in the file card
+    document.getElementById('file-icon').textContent = icons[ext] || '📎';
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('file-size').textContent = (file.size / 1024).toFixed(1) + ' KB · Text will be extracted';
+
+    // Swap: hide the drop zone, show the file card
+    document.getElementById('dropzone').style.display = 'none';
+    document.getElementById('file-card').classList.remove('hidden');
+  }
+
+  function removeFile() {
+    selectedFile  = null;
+    extractedText = null;
+
+    // Show dropzone, hide file card
+    document.getElementById('dropzone').style.display = '';
+    document.getElementById('file-card').classList.add('hidden');
+
+    // Collapse the preview if it was open
+    document.getElementById('preview-box').classList.add('hidden');
+    document.getElementById('preview-chevron').textContent = '▼ Expand';
+    previewOpen = false;
+
+    // Reset the file input (allows same file to be re-selected)
+    document.getElementById('file-input').value = '';
+  }
+
+  function togglePreview() {
+    previewOpen = !previewOpen;
+    var box     = document.getElementById('preview-box');
+    var chevron = document.getElementById('preview-chevron');
+    if (previewOpen) {
+      box.classList.remove('hidden');
+      chevron.textContent = '▲ Collapse';
+    } else {
+      box.classList.add('hidden');
+      chevron.textContent = '▼ Expand';
+    }
+  }
+
+  /* ── Fallback: paste-text textarea ─────────────────────────────────────── */
+  function toggleFallback() {
+    fallbackVisible = !fallbackVisible;
+    var area = document.getElementById('fallback-area');
+    if (fallbackVisible) {
+      area.classList.remove('hidden');
+    } else {
+      area.classList.add('hidden');
+      extractedText = null; // Clear if user hides it
+    }
+  }
+
+  function onFallbackText() {
+    // Called on every keystroke in the fallback textarea
+    var val = document.getElementById('resume-text').value.trim();
+    extractedText = val || null; // Store as the resume text for the pipeline
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     STOP WORDS LIST
+     These common English words are stripped from the JD before we send it
+     to the backend, so we only send real technical keywords.
+  ══════════════════════════════════════════════════════════════════════════ */
+  var STOP_WORDS = new Set([
+    'a','an','the','and','or','but','in','on','at','to','for','of','with','by',
+    'from','as','is','are','was','were','be','been','being','have','has','had',
+    'do','does','did','will','would','could','should','may','might','can','shall',
+    'not','no','nor','so','yet','both','either','neither','than','then','that',
+    'this','these','those','it','its','we','our','you','your','they','their',
+    'he','she','his','her','who','whom','which','what','when','where','how','why',
+    'if','unless','until','while','although','though','because','since','after',
+    'before','about','above','across','against','along','among','around','behind',
+    'below','between','during','except','into','near','off','over','past',
+    'through','under','up','upon','within','without','per','via',
+    'role','position','team','work','working','experience','strong','good',
+    'ability','skills','knowledge','understanding','including','such','like',
+    'also','well','using','use','build','building','develop','developing',
+    'ensure','must','need','required','preferred','plus','bonus','candidate',
+    'join','help','make','other','own','new','job','responsible',
+    'years','year','least','more','most','all','any','some','many','much',
+  ]);
+
+  function extractTechKeywords(text) {
+    // Split the text on spaces and common punctuation characters
+    var tokens   = text.split(/[\s,;/|\-().\[\]"]+/);
+    var seen     = new Set();
+    var keywords = [];
+
+    for (var i = 0; i < tokens.length; i++) {
+      // Remove any remaining special chars (keep letters, digits, #, +, .)
+      var token = tokens[i].replace(/[^a-zA-Z0-9#+.]/g, '').trim();
+
+      var isPureNumber = /^\d+(\.\d+)?$/.test(token); // e.g. "3", "2.0"
+      var isStopWord   = STOP_WORDS.has(token.toLowerCase());
+      var alreadySeen  = seen.has(token.toLowerCase());
+
+      if (token.length >= 2 && !isPureNumber && !isStopWord && !alreadySeen) {
+        seen.add(token.toLowerCase());
+        keywords.push(token);
+      }
+    }
+    return keywords; // e.g. ["Python", "FastAPI", "Docker", "PostgreSQL"]
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     UI HELPER FUNCTIONS
+  ══════════════════════════════════════════════════════════════════════════ */
+
+  function showError(msg) {
+    document.getElementById('error-text').textContent = msg;
+    document.getElementById('error-banner').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function hideError() {
+    document.getElementById('error-banner').classList.add('hidden');
+  }
+
+  function setButtonLoading(isLoading) {
+    var btn = document.getElementById('analyze-btn');
+    btn.disabled = isLoading;
+    document.getElementById('btn-label').textContent =
+      isLoading ? 'Analyzing…' : '✨ Analyze & Generate Blueprint';
+  }
+
+  /* Dynamically build the numbered step list inside the loading panel */
+  function buildStepList(steps) {
+    var list = document.getElementById('step-list');
+    list.innerHTML = ''; // Clear any previous run's steps
+
+    for (var i = 0; i < steps.length; i++) {
+      var row = document.createElement('div');
+      row.className = 'flex items-center gap-3';
+      // Each row: a numbered dot + a text label
+      row.innerHTML =
+        '<div class="step-dot" id="step-dot-' + i + '">' + (i + 1) + '</div>' +
+        '<span class="step-label" id="step-label-' + i + '">' + steps[i] + '</span>';
+      list.appendChild(row);
+    }
+  }
+
+  /* Highlight the dot for the currently running step */
+  function setStepActive(i) {
+    var dot   = document.getElementById('step-dot-'   + i);
+    var label = document.getElementById('step-label-' + i);
+    if (dot)   dot.className   = 'step-dot active';
+    if (label) label.className = 'step-label active';
+  }
+
+  /* Mark a step as completed (green checkmark) */
+  function setStepDone(i) {
+    var dot   = document.getElementById('step-dot-'   + i);
+    var label = document.getElementById('step-label-' + i);
+    if (dot)   { dot.className = 'step-dot done'; dot.textContent = '✓'; }
+    if (label)   label.className = 'step-label done';
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     MAIN ANALYSIS PIPELINE
+     Calls the backend endpoints one by one, in order.
+  ══════════════════════════════════════════════════════════════════════════ */
+  async function runAnalysis() {
+
+    /* 1. Read form values */
+    var jdText     = document.getElementById('jd-input').value.trim();
+    var targetRole = document.getElementById('target-role').value.trim();
+
+    /* 2. Validate — must have resume, JD, and role */
+    if (!extractedText && !selectedFile) {
+      showError('Please upload a resume file or paste your resume text first.');
+      return;
+    }
+    if (!jdText)     { showError('Please paste the job description.'); return; }
+    if (!targetRole) { showError('Please enter a target role.');        return; }
+
+    /* 3. Prepare UI for loading */
+    hideError();
+    document.getElementById('results-panel').classList.add('hidden');
+    document.getElementById('loading-panel').classList.remove('hidden');
+    setButtonLoading(true);
+
+    /* 4. Decide which steps to show (4 if file, 3 if text paste) */
+    var needsUpload = selectedFile && !extractedText;
+    var steps       = needsUpload ? ALL_STEPS : ALL_STEPS.slice(1);
+    buildStepList(steps);
+
+    var resumeText = extractedText; // Will be set after upload if null
+    var stepIndex  = 0;
+
+    try {
+
+      /* ── Step A: Upload file → get extracted text ─────────────────────── */
+      if (needsUpload) {
+        setStepActive(stepIndex);
+
+        var formData = new FormData();
+        formData.append('file', selectedFile); // "file" must match FastAPI's param name
+
+        // We do NOT set Content-Type — the browser sets it automatically
+        // to "multipart/form-data" with the correct boundary
+        var uploadRes  = await fetch(API_BASE + '/api/upload-resume', {
+          method: 'POST',
+          body:   formData
+        });
+        var uploadData = await uploadRes.json();
+
+        if (uploadData.status === 'error') throw new Error(uploadData.message);
+
+        resumeText = uploadData.extracted_text; // The raw text from the PDF/DOCX/TXT
+
+        // Fill the collapsible preview with the first 300 characters
+        document.getElementById('preview-box').textContent =
+          resumeText.slice(0, 300) + (resumeText.length > 300 ? '…' : '');
+
+        setStepDone(stepIndex);
+        stepIndex++;
+      }
+
+      /* ── Step B: Extract skills using spaCy NER ──────────────────────── */
+      setStepActive(stepIndex);
+
+      var entityRes  = await fetch(API_BASE + '/api/extract-entities', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ text: resumeText })
+      });
+      var entityData = await entityRes.json();
+
+      // "skills_identified" is a list of tech skills found in the resume text
+      var resumeSkills = entityData.skills_identified || [];
+
+      setStepDone(stepIndex);
+      stepIndex++;
+
+            /* ── Step C: Semantic skill matching ─────────────────────────────── */
+      setStepActive(stepIndex);
+
+      // Send the raw JD text to backend
+      var matchRes  = await fetch(API_BASE + '/api/match-skills', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ 
+          resume_skills: resumeSkills, 
+          jd_text: jdText
+        })
+      });
+      
+      var matchData = await matchRes.json();
+      
+      // Check if backend returned an error
+      if (matchData.status === 'error') {
+        throw new Error(matchData.message || 'Skill matching failed');
+      }
+
+      var score         = matchData.semantic_match_score; // Number 0-100
+      var missingSkills = matchData.missing_skills || [];       // Array of strings (default to empty array)
+
+      setStepDone(stepIndex);
+      stepIndex++;
+
+      /* ── Step D: Generate project blueprint via Gemini ───────────────── */
+      setStepActive(stepIndex);
+
+      var bpRes  = await fetch(API_BASE + '/api/generate-blueprint', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ missing_skills: missingSkills, target_role: targetRole })
+      });
+      var bpData = await bpRes.json();
+
+      var blueprint = bpData.blueprint; // Object: {project_name, description, ...}
+
+      setStepDone(stepIndex);
+
+      /* ── Render everything ────────────────────────────────────────────── */
+      renderResults(score, missingSkills, blueprint);
+
+    } catch (err) {
+      showError('Backend error: ' + err.message +
+                '. Make sure the FastAPI server is running at ' + API_BASE);
+    } finally {
+      // Always run: hide loading, re-enable button
+      document.getElementById('loading-panel').classList.add('hidden');
+      setButtonLoading(false);
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     RENDER RESULTS
+     Takes the API data and injects it into the DOM.
+  ══════════════════════════════════════════════════════════════════════════ */
+  function renderResults(score, missingSkills, blueprint) {
+    // Safety checks - ensure variables are defined
+    if (!missingSkills) {
+      missingSkills = [];
+    }
+    if (!blueprint) {
+      showError('Blueprint generation failed. Please try again.');
+      return;
+    }
+    
+    var rounded = Math.round(score);
+    /* ── Score Ring ──────────────────────────────────────────────────────── */
+    // The SVG circle has radius 54, so circumference = 2 * PI * 54 ≈ 339.3
+    var circumference = 339.3;
+    // Offset = how much of the ring is NOT filled (full = 339.3, empty = 0)
+    var offset = circumference - (rounded / 100) * circumference;
+
+    // Choose colour based on score
+    var colour = rounded >= 70 ? '#10b981'   // green
+               : rounded >= 45 ? '#f59e0b'   // amber
+               : '#ef4444';                  // red
+
+    var arc = document.getElementById('score-arc');
+    arc.setAttribute('stroke', colour);
+    arc.setAttribute('stroke-dashoffset', offset); // CSS transition animates this
+    arc.style.filter = 'drop-shadow(0 0 8px ' + colour + ')';
+
+    document.getElementById('score-number').textContent = rounded + '%';
+
+    var label = rounded >= 70 ? '🚀 Strong Match'
+              : rounded >= 45 ? '⚡ Moderate Match'
+              : '🔧 Needs Work';
+    var labelEl = document.getElementById('score-label');
+    labelEl.textContent = label;
+    labelEl.style.color = colour;
+
+    /* ── Skill Gap Pills ─────────────────────────────────────────────────── */
+    var pillsDiv   = document.getElementById('skill-pills');
+    var countBadge = document.getElementById('gap-count-badge');
+    pillsDiv.innerHTML = ''; // Clear previous results
+
+    if (missingSkills.length === 0) {
+      // No gaps found — show a celebration message
+      pillsDiv.innerHTML =
+        '<div class="flex flex-col items-center gap-2 text-emerald-400 w-full py-4">' +
+          '<span class="text-3xl">🎉</span>' +
+          '<p class="font-semibold">No significant skill gaps!</p>' +
+          '<p class="text-xs text-slate-500">Your resume matches the job description well.</p>' +
+        '</div>';
+      countBadge.textContent = '0 missing';
+    } else {
+      countBadge.textContent = missingSkills.length + ' missing';
+
+      // Create one pill <span> per missing skill
+      for (var i = 0; i < missingSkills.length; i++) {
+        var pill = document.createElement('span');
+        pill.className = 'pill-in inline-flex items-center px-3 py-1 rounded-full ' +
+                         'text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30';
+        pill.style.animationDelay = (i * 50) + 'ms'; // Stagger the entrance animation
+        pill.textContent = missingSkills[i];
+        pillsDiv.appendChild(pill);
+      }
+    }
+
+    /* ── Blueprint Card ──────────────────────────────────────────────────── */
+    document.getElementById('bp-name').textContent = blueprint.project_name || '';
+    document.getElementById('bp-desc').textContent = blueprint.description  || '';
+
+    // Core Features: numbered list items
+    var featureList = document.getElementById('bp-features');
+    featureList.innerHTML = '';
+    var features = blueprint.core_features || [];
+    for (var f = 0; f < features.length; f++) {
+      var li = document.createElement('li');
+      li.className = 'pill-in flex items-start gap-3 text-sm text-slate-300';
+      li.style.animationDelay = (300 + f * 60) + 'ms';
+      li.innerHTML =
+        '<span class="w-5 h-5 rounded-full bg-violet-600/20 border border-violet-500/30 ' +
+               'flex items-center justify-center text-violet-400 text-xs shrink-0 mt-0.5">' +
+          (f + 1) + '</span>' + features[f];
+      featureList.appendChild(li);
+    }
+
+    // Tech Stack: indigo pill tags
+    var stackDiv = document.getElementById('bp-stack');
+    stackDiv.innerHTML = '';
+    var techs = blueprint.tech_stack || [];
+    for (var t = 0; t < techs.length; t++) {
+      var tp = document.createElement('span');
+      tp.className = 'pill-in inline-flex items-center px-3 py-1 rounded-full ' +
+                     'text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30';
+      tp.style.animationDelay = (300 + t * 50) + 'ms';
+      tp.textContent = techs[t];
+      stackDiv.appendChild(tp);
+    }
+
+    // Resume bullet point
+    document.getElementById('bp-bullet').textContent = blueprint.resume_bullet_point || '';
+
+    /* ── Show the results panel ──────────────────────────────────────────── */
+    var panel = document.getElementById('results-panel');
+    panel.classList.remove('hidden');
+
+    // Smooth-scroll to the results after a tiny delay (lets display:block take effect)
+    setTimeout(function () {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     COPY BULLET POINT TO CLIPBOARD
+  ══════════════════════════════════════════════════════════════════════════ */
+  function copyBullet() {
+    var text = document.getElementById('bp-bullet').textContent;
+    navigator.clipboard.writeText(text).then(function () {
+      var btn = document.querySelector('.copy-btn');
+      btn.textContent = '✓ Copied';
+      setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     RESET — go back to the blank input form
+  ══════════════════════════════════════════════════════════════════════════ */
+  function resetForm() {
+    document.getElementById('results-panel').classList.add('hidden');
+
+    // Clear file state
+    removeFile();
+    extractedText = null;
+
+    // Clear text inputs
+    document.getElementById('jd-input').value    = '';
+    document.getElementById('target-role').value = '';
+    document.getElementById('resume-text').value = '';
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>

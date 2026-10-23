@@ -10,13 +10,6 @@ __pycache__/
 .Python
 *.so
 
-# Node.js / React
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.DS_Store
-
 # IDE
 .vscode/
 .idea/

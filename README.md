@@ -40,7 +40,7 @@ Traditional resume scanners (like Jobscan or ResumeGuru) rely on basic keyword c
 | **Machine Learning** | spaCy, Sentence-Transformers, Scikit-Learn        |
 | **Generative AI**    | Google Gemini API (`google-genai`)                |
 | **Frontend**         | HTML5, Vanilla JavaScript, Tailwind CSS, Chart.js |
-| **Utilities**        | `pypdf`, `python-docx`, `python-dotenv`           |
+| **Utilities**        | `pdfplumber`, `python-docx`, `python-dotenv`      |
 
 ---
 
@@ -83,6 +83,16 @@ echo "GEMINI_API_KEY=your_actual_api_key_here" > .env
 # Run the FastAPI server
 uvicorn main:app --reload
 ```
+
+### Resume Validation Rules
+
+StepUp validates uploaded resumes before processing:
+
+- **File size**: Max 5 MB (rejects without loading the entire file into RAM)
+- **File type**: Detected by magic bytes, not file extension (prevents disguised files)
+- **Text extraction**: Rejects scanned/image-only PDFs, password-protected or corrupted files
+- **Content check**: Must have ≥150 characters, at least 2 resume sections (e.g. Education, Experience), and contact info (email or phone)
+- **Pasted text**: Same content checks apply
 
 ### 2. Frontend Setup
 

@@ -2,21 +2,21 @@
 import os
 import re
 import json
-import io
 import time
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import spacy
 from sentence_transformers import SentenceTransformer, util
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-import pdfplumber
-from docx import Document
 
 from skills import (
     TECH_SKILLS_DICT, find_skills, normalize_skill, expand_with_groups, display_name,
+)
+from resume_validator import (
+    authenticate_resume_file, validate_resume_text, ResumeValidationError,
 )
 
 # Cosine-similarity cut-off for "this resume skill is semantically close enough".
@@ -42,9 +42,9 @@ print("✅ ML Model 2 Loaded! (skill embeddings cached)")
 
 print("Loading ML Model 3: Gemini API...")
 api_key = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
 if api_key:
     gemini_client = genai.Client(api_key=api_key)
-    GEMINI_MODEL_NAME = 'models/gemini-2.5-flash'
     # JSON mode removes markdown fences; thinking_budget=0 skips the slow "thinking" phase.
     # (If your google-genai version rejects ThinkingConfig, delete the thinking_config line.)
     GEMINI_CONFIG = types.GenerateContentConfig(
@@ -57,6 +57,10 @@ if api_key:
 else:
     print("⚠️ WARNING: GEMINI_API_KEY not found in .env file!")
     gemini_client = None
+
+# In-memory caches for Gemini generation keyed by (target_role, sorted missing skills, jd_text)
+_BLUEPRINT_CACHE: dict = {}
+_INTERVIEW_CACHE: dict = {}
 
 
 def ask_gemini_json(prompt: str) -> dict:
@@ -97,24 +101,28 @@ async def log_request_time(request: Request, call_next):
 
 # --- 2. Data Models (Pydantic) ---
 class ResumeTextRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=100000)
+
+class ValidateTextRequest(BaseModel):
+    text: str = Field(..., max_length=100000)
 
 class SkillMatchRequest(BaseModel):
-    resume_skills: list[str]
-    jd_text: str
-    resume_text: str = ""
+    resume_skills: list[str] = Field(default=[], max_length=200)
+    jd_text: str = Field(..., max_length=50000)
+    resume_text: str = Field(default="", max_length=100000)
+    required_skills: list[str] = Field(default=[], max_length=50)
 
 class BlueprintRequest(BaseModel):
-    missing_skills: list[str]
-    target_role: str
-    matched_skills: list[str] = []
-    jd_text: str = ""
+    missing_skills: list[str] = Field(default=[], max_length=50)
+    target_role: str = Field(..., max_length=200)
+    matched_skills: list[str] = Field(default=[], max_length=50)
+    jd_text: str = Field(default="", max_length=50000)
 
 class InterviewRequest(BaseModel):
-    missing_skills: list[str]
-    target_role: str
-    matched_skills: list[str] = []
-    jd_text: str = ""
+    missing_skills: list[str] = Field(default=[], max_length=50)
+    target_role: str = Field(..., max_length=200)
+    matched_skills: list[str] = Field(default=[], max_length=50)
+    jd_text: str = Field(default="", max_length=50000)
 
 
 # --- 3. API ROUTES ---
@@ -128,52 +136,54 @@ def health_check():
     return {"status": "success", "message": "StepUp Backend is ready for ML models!"}
 
 
-# --- FILE UPLOAD ENDPOINT ---
+# --- FILE UPLOAD ENDPOINT (with resume validation) ---
 @app.post("/api/upload-resume")
 async def upload_resume(file: UploadFile = File(...)):
     """
-    Accepts PDF, DOCX, or TXT resume files and extracts text.
+    Accepts PDF, DOCX, or TXT resume files.
+    Validates the file (size, type, content) and extracts text.
+    Returns HTTP 200 with status:'error' on failure (frontend reads this).
     """
     try:
-        contents = await file.read()
-        filename = file.filename.lower()
-        extracted_text = ""
-
-        if filename.endswith('.pdf'):
-            with pdfplumber.open(io.BytesIO(contents)) as pdf:
-                for page in pdf.pages:
-                    text = page.extract_text(x_tolerance=2)
-                    if text:
-                        # Remove CID font references like (cid:131)
-                        text = re.sub(r'\(cid:\d+\)', ' ', text)
-                        extracted_text += text + "\n"
-        elif filename.endswith('.docx'):
-            doc = Document(io.BytesIO(contents))
-            for paragraph in doc.paragraphs:
-                extracted_text += paragraph.text + "\n"
-        elif filename.endswith('.txt'):
-            extracted_text = contents.decode('utf-8')
-        else:
-            return {
-                "status": "error",
-                "message": "Unsupported file format. Please upload PDF, DOCX, or TXT."
-            }
-
-        # Light cleanup: normalise whitespace (pdfplumber output is already clean)
-        extracted_text = re.sub(r'[ \t]+', ' ', extracted_text)    # Collapse horizontal spaces
-        extracted_text = re.sub(r'\n{3,}', '\n\n', extracted_text) # Collapse excessive blank lines
-        extracted_text = extracted_text.strip()
-
+        result = await authenticate_resume_file(file)
         return {
             "status": "success",
-            "filename": filename,
-            "extracted_text": extracted_text
+            "filename": file.filename,
+            "extracted_text": result["text"],
+            "validation": {
+                "file_type": result["file_type"],
+                "confidence": result["confidence"],
+                "checks": result["checks"],
+            }
         }
+    except ResumeValidationError as e:
+        return {"status": "error", "message": str(e)}
     except Exception as e:
+        return {"status": "error", "message": f"Failed to process file: {str(e)}"}
+
+
+# --- PASTED TEXT VALIDATION ENDPOINT ---
+class ValidateTextRequest(BaseModel):
+    text: str
+
+@app.post("/api/validate-text")
+def validate_text(data: ValidateTextRequest):
+    """Validate pasted resume text (min length + resume-likeness)."""
+    try:
+        result = validate_resume_text(data.text)
         return {
-            "status": "error",
-            "message": f"Failed to process file: {str(e)}"
+            "status": "success",
+            "extracted_text": result["text"],
+            "validation": {
+                "file_type": result["file_type"],
+                "confidence": result["confidence"],
+                "checks": result["checks"],
+            }
         }
+    except ResumeValidationError as e:
+        return {"status": "error", "message": str(e)}
+    except Exception as e:
+        return {"status": "error", "message": f"Text validation failed: {str(e)}"}
 
 
 # --- BLOCK 2: ML MODEL 1 (NER) ENDPOINT ---
@@ -186,6 +196,7 @@ def extract_entities(data: ResumeTextRequest):
 
     # Whole-word match against the full skills vocabulary (handles aliases like "Node.js", "k8s")
     found_skills = find_skills(data.text)
+    skills_disp = [display_name(s) for s in found_skills]
 
     return {
         "status": "success",
@@ -195,15 +206,45 @@ def extract_entities(data: ResumeTextRequest):
             "experience_dates": dates,
             "names_found_for_anonymization": people
         },
-        "skills_identified": found_skills
+        "skills_identified": found_skills,
+        "skills_display": skills_disp
     }
 
 
 # --- BLOCK 3: ML MODEL 2 (SEMANTIC MATCHING) ENDPOINT ---
 @app.post("/api/match-skills")
 def match_skills(data: SkillMatchRequest):
-    # 1. Skills the job requires (whole-word match, aliases resolved)
-    jd_skills = find_skills(data.jd_text)
+    # 1. Build jd_skills:
+    # If required_skills is non-empty, use only required_skills (skip find_skills entirely).
+    # Otherwise, run find_skills ONLY on the Responsibilities text (not Company/Title).
+    original_skills_map = {}
+    jd_skills = []
+    seen = set()
+
+    has_required = any(s.strip() for s in data.required_skills) if data.required_skills else False
+    if has_required:
+        for s in data.required_skills:
+            s_clean = s.strip()
+            if not s_clean:
+                continue
+            canon = normalize_skill(s_clean)
+            if canon not in seen:
+                seen.add(canon)
+                jd_skills.append(canon)
+                original_skills_map[canon] = s_clean
+    else:
+        # Run find_skills only on the Responsibilities section of jd_text
+        jd_text = data.jd_text
+        resp_match = re.search(
+            r'(?:responsibilities|key responsibilities|duties)[:\s]*(.*?)(?=(?:required skills|requirements|qualifications|$))',
+            jd_text,
+            re.IGNORECASE | re.DOTALL
+        )
+        target_text = resp_match.group(1).strip() if resp_match else jd_text
+        for canon in find_skills(target_text):
+            if canon not in seen:
+                seen.add(canon)
+                jd_skills.append(canon)
 
     # 2. Skills the resume has: normalise aliases, then add implied broad concepts (aws -> cloud)
     resume_canon = {normalize_skill(s) for s in data.resume_skills if s.strip()}
@@ -221,23 +262,50 @@ def match_skills(data: SkillMatchRequest):
     )
 
     matched, missing, details = [], [], []
+    resume_raw_text = data.resume_text or ""
+
     for skill in jd_skills:
+        orig = original_skills_map.get(skill, skill)
+        disp = display_name(skill, orig)
         if skill in resume_covered:
-            matched.append(display_name(skill))
-            details.append({"skill": display_name(skill), "status": "matched", "via": "exact/group"})
+            matched.append(disp)
+            details.append({"skill": disp, "status": "matched", "via": "exact/group"})
             continue
+
+        # For required skills NOT in SKILL_INDEX, check whole-word presence in resume_text
+        if skill not in SKILL_INDEX and resume_raw_text:
+            search_terms = [orig]
+            if orig.lower() != skill.lower():
+                search_terms.append(skill)
+            found_in_text = False
+            for term in search_terms:
+                if not term.strip():
+                    continue
+                escaped = re.escape(term.strip())
+                pattern = rf'(?<![A-Za-z0-9+#.]){escaped}(?![A-Za-z0-9+#])'
+                if re.search(pattern, resume_raw_text, re.IGNORECASE):
+                    found_in_text = True
+                    break
+            if found_in_text:
+                matched.append(disp)
+                details.append({"skill": disp, "status": "matched", "via": "mentioned in resume text"})
+                continue
 
         best_sim = 0.0
         if emb_resume_skills is not None:
-            best_sim = util.cos_sim(SKILL_EMB[SKILL_INDEX[skill]], emb_resume_skills)[0].max().item()
+            if skill in SKILL_INDEX:
+                skill_emb = SKILL_EMB[SKILL_INDEX[skill]]
+            else:
+                skill_emb = model_semantic.encode(skill, convert_to_tensor=True)
+            best_sim = util.cos_sim(skill_emb, emb_resume_skills)[0].max().item()
 
         if best_sim >= SEMANTIC_THRESHOLD:
-            matched.append(display_name(skill))
-            details.append({"skill": display_name(skill), "status": "matched",
+            matched.append(disp)
+            details.append({"skill": disp, "status": "matched",
                             "via": f"semantic ({best_sim:.2f})"})
         else:
-            missing.append(display_name(skill))
-            details.append({"skill": display_name(skill), "status": "missing",
+            missing.append(disp)
+            details.append({"skill": disp, "status": "missing",
                             "via": f"best similarity {best_sim:.2f}"})
 
     coverage = round(100 * len(matched) / len(jd_skills), 1) if jd_skills else 0.0
@@ -299,6 +367,18 @@ def generate_blueprint(data: BlueprintRequest):
     if not gemini_client:
         return {"status": "error", "message": "Gemini API Key is missing. Check your .env file."}
 
+    cache_key = (
+        data.target_role.strip().lower(),
+        tuple(sorted(s.strip().lower() for s in data.missing_skills)),
+        data.jd_text.strip(),
+    )
+    if cache_key in _BLUEPRINT_CACHE:
+        return {
+            "status": "success",
+            "ml_model_used": f"{GEMINI_MODEL_NAME} (cached)",
+            "blueprint": _BLUEPRINT_CACHE[cache_key]
+        }
+
     skills_str = ", ".join(data.missing_skills) if data.missing_skills else "advanced specialization and system design"
     matched_str = ", ".join(data.matched_skills) if data.matched_skills else "fundamental programming skills"
 
@@ -312,23 +392,24 @@ def generate_blueprint(data: BlueprintRequest):
     - Already proven skills: {matched_str}
     - Critical skill gaps to bridge: {skills_str}
 
-    Design a highly tailored, production-grade portfolio project specifically demonstrating mastery in these missing skills ({skills_str}) while leveraging their existing strengths.
-    The project must be realistic, impressive to technical recruiters, and directly relevant to the target role '{data.target_role}'.
+    Design a highly tailored, production-grade portfolio project plan specifically demonstrating mastery in these missing skills ({skills_str}) while leveraging their existing strengths.
+    The project plan must be realistic, impressive to technical recruiters, and directly relevant to the target role '{data.target_role}'.
 
     YOU MUST RETURN ONLY VALID JSON. Do not include markdown formatting like ```json or any conversational text.
 
     Use this exact JSON structure:
     {{
       "project_name": "A catchy, professional, industry-grade project name",
-      "description": "A concise 2-sentence description of the problem solved and core architecture",
+      "description": "A concise 2-sentence plan written in present/future tense (e.g. 'This project will build... It aims to solve...') describing the problem to be solved and the core architecture. It must be phrased as a proposed project plan, not an already completed project.",
       "core_features": ["Feature 1 highlighting a missing skill", "Feature 2 highlighting another gap", "Feature 3 on production-grade reliability"],
       "tech_stack": ["Tech 1", "Tech 2", "Tech 3"],
-      "resume_bullet_point": "One powerful, metric-driven, ATS-friendly resume bullet point quantifying impact and architecture."
+      "resume_bullet_point": "One powerful, metric-driven, ATS-friendly resume bullet point for when the project is completed. You MUST use bracketed placeholders like [X]%, [N]ms, or [N] users instead of invented numbers (e.g., 'Architected a distributed data pipeline with Python and Docker, reducing query latency by [X]% across [N] datasets.')."
     }}
     """
 
     try:
         blueprint_data = ask_gemini_json(prompt)
+        _BLUEPRINT_CACHE[cache_key] = blueprint_data
         return {
             "status": "success",
             "ml_model_used": GEMINI_MODEL_NAME,
@@ -343,10 +424,18 @@ def generate_blueprint(data: BlueprintRequest):
 def generate_interview(data: InterviewRequest):
     if not gemini_client:
         return {"status": "error", "message": "No API Key"}
-    
+
+    cache_key = (
+        data.target_role.strip().lower(),
+        tuple(sorted(s.strip().lower() for s in data.missing_skills)),
+        data.jd_text.strip(),
+    )
+    if cache_key in _INTERVIEW_CACHE:
+        return {"status": "success", "data": _INTERVIEW_CACHE[cache_key]}
+
     skills_str = ", ".join(data.missing_skills) if data.missing_skills else "advanced architecture and production troubleshooting"
     matched_str = ", ".join(data.matched_skills) if data.matched_skills else "core development"
-    
+
     prompt = f"""
     You are a Lead Hiring Manager and Senior Technical Interviewer assessing a candidate for a '{data.target_role}' position.
     Job Description Context:
@@ -356,14 +445,18 @@ def generate_interview(data: InterviewRequest):
     - Proven skills: {matched_str}
     - Specific skill gaps: {skills_str}
 
-    Generate exactly 3 challenging, realistic interview questions specifically testing the candidate on their gap areas ({skills_str}) within the practical context of a '{data.target_role}'.
-    Include realistic scenario-based problems (e.g. system design tradeoffs, debugging edge cases, or architecture decisions).
-    For each question, provide a structured 'Hint' explaining what concepts an interviewer wants to hear.
+    Generate exactly 3 challenging, realistic interview questions specifically testing the candidate on their gap areas ({skills_str}).
+    CRITICAL REQUIREMENTS:
+    1. DOMAIN & CONTEXT: All questions and scenarios MUST stay strictly within the domain, industry, company context, and responsibilities described in the Job Description.
+    2. PLAIN TEXT ONLY: DO NOT use markdown backticks or markdown formatting anywhere (no `code` formatting). Present code, SQL statements, and technical keywords inline in plain text without backticks.
+    3. HINTS: For each question, provide a structured 'Hint' in plain text explaining what key concepts, architectural considerations, or tradeoffs an interviewer expects to hear.
 
     Return ONLY valid JSON in this format:
-    {{ "questions": [ {{ "q": "Question text", "hint": "Hint text" }} ] }}
+    {{ "questions": [ {{ "q": "Question text in plain text", "hint": "Hint text in plain text" }} ] }}
     """
     try:
-        return {"status": "success", "data": ask_gemini_json(prompt)}
+        data_res = ask_gemini_json(prompt)
+        _INTERVIEW_CACHE[cache_key] = data_res
+        return {"status": "success", "data": data_res}
     except Exception as e:
         return {"status": "error", "message": str(e)}

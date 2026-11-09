@@ -10,6 +10,15 @@ __pycache__/
 .Python
 *.so
 
+# Testing
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Large generated test file (tests can recreate it)
+test_files/big_resume.pdf
+
 # IDE
 .vscode/
 .idea/

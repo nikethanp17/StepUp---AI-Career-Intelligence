@@ -6,6 +6,6 @@ sentence-transformers
 scikit-learn
 google-genai
 python-dotenv
-pypdf
+pdfplumber
 python-docx
 python-multipart

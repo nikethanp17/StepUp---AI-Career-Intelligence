@@ -198,14 +198,21 @@
       width: 1.75rem; height: 1.75rem; border-radius: 9999px;
       display: flex; align-items: center; justify-content: center;
       font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
-      background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.08); color: #64748b;
       transition: background 0.4s, color 0.4s, box-shadow 0.4s;
+    }
+    .dark .step-dot {
+      background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.4);
     }
     .step-dot.active { background: #7c3aed; color: #fff; box-shadow: 0 0 12px rgba(124,58,237,0.7); }
     .step-dot.done   { background: #10b981; color: #fff; box-shadow: 0 0 12px rgba(16,185,129,0.6); }
-    .step-label { font-size: 0.875rem; font-weight: 500; color: rgba(255,255,255,0.3); transition: color 0.4s; }
-    .step-label.active { color: #c4b5fd; }
-    .step-label.done   { color: #6ee7b7; }
+
+    .step-label { font-size: 0.875rem; font-weight: 500; color: #64748b; transition: color 0.4s; }
+    .dark .step-label { color: rgba(255,255,255,0.4); }
+    .step-label.active { color: #7c3aed; }
+    .dark .step-label.active { color: #c4b5fd; }
+    .step-label.done   { color: #059669; }
+    .dark .step-label.done   { color: #6ee7b7; }
   </style>
 </head>
 
@@ -300,7 +307,7 @@
               <p class="text-xs text-slate-400 mt-1">or click to browse · PDF, DOCX, TXT supported</p>
             </div>
           </div>
-          <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt"
+          <input type="file" id="file-input" accept=".pdf,.docx,.txt"
                  class="hidden" onchange="onFileSelected(event)" />
 
           <!-- File card (hidden until a file is picked) -->
@@ -316,6 +323,13 @@
                        border border-rose-400/30 hover:bg-rose-500/10 transition-colors">
                 Remove
               </button>
+            </div>
+
+            <!-- Validation badge (shown after upload validation) -->
+            <div id="validation-badge" class="hidden flex items-center gap-2 px-3 py-1.5
+                      rounded-lg text-xs font-semibold">
+              <span id="validation-icon">✅</span>
+              <span id="validation-text"></span>
             </div>
 
             <!-- Collapsible extracted text preview -->
@@ -459,7 +473,7 @@
         </svg>
       </div>
       <div class="text-center">
-        <p class="font-semibold text-white text-lg">Running AI Pipeline</p>
+        <p class="font-semibold text-slate-900 dark:text-white text-lg">Running AI Pipeline</p>
         <p class="text-slate-500 text-sm mt-1">Three ML models working in sequence…</p>
       </div>
       <!-- JS builds these steps dynamically -->
@@ -541,20 +555,38 @@
       </div>
 
       <!-- Row 2: Blueprint Card -->
-      <div class="result-card p-5 sm:p-6 fade-up" style="animation-delay:200ms">
-        <div class="flex items-start gap-4 mb-4">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600
-                      flex items-center justify-center shrink-0
-                      shadow-[0_0_20px_rgba(124,58,237,0.4)]">
-            <span class="text-xl">🧩</span>
-          </div>
-          <div>
-            <p class="text-xs font-semibold text-violet-500 dark:text-violet-400 uppercase tracking-widest mb-1">
-              AI-Generated Project Blueprint
-            </p>
-            <h2 id="bp-name" class="text-2xl font-extrabold text-slate-900 dark:text-white leading-tight"></h2>
-          </div>
+      <div id="blueprint-card" class="result-card p-5 sm:p-6 fade-up" style="animation-delay:200ms">
+        <!-- Blueprint Loading State (inline) -->
+        <div id="bp-loading" class="hidden py-8 flex flex-col items-center justify-center gap-3">
+          <div class="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin"></div>
+          <p class="text-sm text-slate-400 animate-pulse">Generating your personalized project blueprint…</p>
         </div>
+
+        <!-- Blueprint Fallback/Error State -->
+        <div id="bp-error" class="hidden py-8 px-6 rounded-xl border border-rose-500/20 bg-rose-500/10 flex flex-col items-center text-center gap-3">
+          <span class="text-2xl">⚠️</span>
+          <p id="bp-error-msg" class="text-sm font-semibold text-rose-400">Blueprint is temporarily unavailable, please try again</p>
+          <button id="bp-retry-btn" type="button" onclick="retryBlueprint()"
+                  class="px-5 py-2 text-xs font-bold rounded-xl bg-violet-600 hover:bg-violet-500 text-white transition-all shadow-md active:scale-95">
+            🔄 Retry
+          </button>
+        </div>
+
+        <!-- Blueprint Content Container -->
+        <div id="bp-content">
+          <div class="flex items-start gap-4 mb-4">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600
+                        flex items-center justify-center shrink-0
+                        shadow-[0_0_20px_rgba(124,58,237,0.4)]">
+              <span class="text-xl">🧩</span>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-violet-500 dark:text-violet-400 uppercase tracking-widest mb-1">
+                AI-Generated Project Blueprint
+              </p>
+              <h2 id="bp-name" class="text-2xl font-extrabold text-slate-900 dark:text-white leading-tight"></h2>
+            </div>
+          </div>
 
         <p id="bp-desc" class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-4 ml-16"></p>
 
@@ -590,10 +622,11 @@
             </div>
             <button class="copy-btn" onclick="copyBullet()">Copy</button>
           </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">Replace [X], [N] with your real results after building it.</p>
         </div>
 
-
-      </div>
+        </div><!-- end bp-content -->
+      </div><!-- end blueprint-card -->
 
       <!-- AI Mock Interview Card -->
       <div class="result-card p-5 sm:p-6 fade-up" style="animation-delay:300ms">
@@ -658,6 +691,7 @@
   var isDark          = true;   // Tracks current theme (starts dark)
   var previewOpen     = false;  // Is the extracted-text preview expanded?
   var fallbackVisible = false;  // Is the paste-text fallback textarea visible?
+  var uploading       = false;  // Is a resume file currently being uploaded & validated?
 
   /* ── Step labels for the loading panel ─────────────────────────────────── */
   var ALL_STEPS = [
@@ -730,29 +764,118 @@
   }
 
   function processFile(file) {
-    selectedFile = file; // Store for later use in the API call
+    // Client-side pre-checks before showing the file card
+    var ext = file.name.split('.').pop().toLowerCase();
+    var allowedExts = ['pdf', 'docx', 'txt'];
+
+    if (allowedExts.indexOf(ext) === -1) {
+      showError('Unsupported file type ".' + ext + '". Please upload a PDF, DOCX, or TXT file.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showError('File is larger than 5 MB. Please upload a smaller resume.');
+      return;
+    }
+
+    // Selecting a file clears any text previously in the paste box
+    var pasteArea = document.getElementById('resume-text');
+    if (pasteArea) pasteArea.value = '';
+    var fallbackArea = document.getElementById('fallback-area');
+    if (fallbackArea) fallbackArea.classList.add('hidden');
+    fallbackVisible = false;
+
+    selectedFile = file; // Store for later use
 
     // Pick an emoji based on the file extension
-    var icons = { pdf: '📄', docx: '📝', doc: '📝', txt: '📃' };
-    var ext   = file.name.split('.').pop().toLowerCase();
+    var icons = { pdf: '📄', docx: '📝', txt: '📃' };
 
     // Fill in the file card
     document.getElementById('file-icon').textContent = icons[ext] || '📎';
     document.getElementById('file-name').textContent = file.name;
-    document.getElementById('file-size').textContent = (file.size / 1024).toFixed(1) + ' KB · Text will be extracted';
+    document.getElementById('file-size').textContent = (file.size / 1024).toFixed(1) + ' KB · Validating…';
 
     // Swap: hide the drop zone, show the file card
     document.getElementById('dropzone').style.display = 'none';
     document.getElementById('file-card').classList.remove('hidden');
+
+    // Hide any previous validation badge
+    document.getElementById('validation-badge').classList.add('hidden');
+
+    // Immediately upload and validate the file
+    uploadAndValidateFile(file);
+  }
+
+  /* Upload file immediately on selection to validate and extract text */
+  async function uploadAndValidateFile(file) {
+    uploading = true;
+    var thisFile = file;
+    try {
+      var formData = new FormData();
+      formData.append('file', file);
+
+      var res = await fetch(API_BASE + '/api/upload-resume', {
+        method: 'POST',
+        body: formData
+      });
+      var data = await res.json();
+
+      // Ignore stale upload responses if selectedFile changed
+      if (selectedFile !== thisFile) {
+        return;
+      }
+
+      if (data.status === 'error') {
+        // Show error and remove the file card
+        showError(data.message);
+        removeFile();
+        return;
+      }
+
+      // Store extracted text so runAnalysis() skips re-uploading
+      extractedText = data.extracted_text;
+
+      // Update file size text
+      document.getElementById('file-size').textContent =
+        (file.size / 1024).toFixed(1) + ' KB · Text extracted';
+
+      // Fill the collapsible preview
+      document.getElementById('preview-box').textContent =
+        extractedText.slice(0, 300) + (extractedText.length > 300 ? '…' : '');
+
+      // Show validation badge
+      var badge = document.getElementById('validation-badge');
+      var confidence = (data.validation && data.validation.confidence) || 0;
+      badge.classList.remove('hidden');
+      badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold ' +
+        'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
+      document.getElementById('validation-icon').textContent = '✅';
+      document.getElementById('validation-text').textContent =
+        'Valid resume (confidence ' + confidence + '%)';
+
+    } catch (err) {
+      if (selectedFile === thisFile) {
+        showError('Upload failed: ' + err.message + '. Is the backend running?');
+        removeFile();
+      }
+    } finally {
+      if (selectedFile === thisFile) {
+        uploading = false;
+      }
+    }
   }
 
   function removeFile() {
     selectedFile  = null;
     extractedText = null;
+    uploading     = false;
 
     // Show dropzone, hide file card
     document.getElementById('dropzone').style.display = '';
     document.getElementById('file-card').classList.add('hidden');
+
+    // Hide the validation badge
+    document.getElementById('validation-badge').classList.add('hidden');
 
     // Collapse the preview if it was open
     document.getElementById('preview-box').classList.add('hidden');
@@ -784,60 +907,37 @@
       area.classList.remove('hidden');
     } else {
       area.classList.add('hidden');
-      extractedText = null; // Clear if user hides it
+      if (!selectedFile) {
+        extractedText = null; // Only clear if no file is uploaded
+      }
     }
   }
 
   function onFallbackText() {
+    // Typing in the paste box clears any selected file
+    if (selectedFile) {
+      removeFile();
+    }
     // Called on every keystroke in the fallback textarea
     var val = document.getElementById('resume-text').value.trim();
     extractedText = val || null; // Store as the resume text for the pipeline
   }
 
-  /* ══════════════════════════════════════════════════════════════════════════
-     STOP WORDS LIST
-     These common English words are stripped from the JD before we send it
-     to the backend, so we only send real technical keywords.
-  ══════════════════════════════════════════════════════════════════════════ */
-  var STOP_WORDS = new Set([
-    'a','an','the','and','or','but','in','on','at','to','for','of','with','by',
-    'from','as','is','are','was','were','be','been','being','have','has','had',
-    'do','does','did','will','would','could','should','may','might','can','shall',
-    'not','no','nor','so','yet','both','either','neither','than','then','that',
-    'this','these','those','it','its','we','our','you','your','they','their',
-    'he','she','his','her','who','whom','which','what','when','where','how','why',
-    'if','unless','until','while','although','though','because','since','after',
-    'before','about','above','across','against','along','among','around','behind',
-    'below','between','during','except','into','near','off','over','past',
-    'through','under','up','upon','within','without','per','via',
-    'role','position','team','work','working','experience','strong','good',
-    'ability','skills','knowledge','understanding','including','such','like',
-    'also','well','using','use','build','building','develop','developing',
-    'ensure','must','need','required','preferred','plus','bonus','candidate',
-    'join','help','make','other','own','new','job','responsible',
-    'years','year','least','more','most','all','any','some','many','much',
-  ]);
+  /* ── Helper: safely escape HTML characters ────────────────────────────── */
+  function escapeHtml(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
 
-  function extractTechKeywords(text) {
-    // Split the text on spaces and common punctuation characters
-    var tokens   = text.split(/[\s,;/|\-().\[\]"]+/);
-    var seen     = new Set();
-    var keywords = [];
-
-    for (var i = 0; i < tokens.length; i++) {
-      // Remove any remaining special chars (keep letters, digits, #, +, .)
-      var token = tokens[i].replace(/[^a-zA-Z0-9#+.]/g, '').trim();
-
-      var isPureNumber = /^\d+(\.\d+)?$/.test(token); // e.g. "3", "2.0"
-      var isStopWord   = STOP_WORDS.has(token.toLowerCase());
-      var alreadySeen  = seen.has(token.toLowerCase());
-
-      if (token.length >= 2 && !isPureNumber && !isStopWord && !alreadySeen) {
-        seen.add(token.toLowerCase());
-        keywords.push(token);
-      }
-    }
-    return keywords; // e.g. ["Python", "FastAPI", "Docker", "PostgreSQL"]
+  /* ── Helper: safely escape HTML & render inline `code` fragments as <code> ── */
+  function formatGeminiText(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.textContent = str; // HTML-escapes all special characters
+    var safeText = div.innerHTML;
+    return safeText.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-violet-500/10 dark:bg-white/10 text-violet-600 dark:text-violet-400 font-mono text-xs">$1</code>');
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -906,6 +1006,17 @@
     var jdResponsibility = document.getElementById('jd-responsibilities').value.trim();
     var jdSkillsRaw      = document.getElementById('jd-skills').value.trim();
 
+    // Split #jd-skills on commas/newlines, trim, and dedupe into required_skills
+    var requiredSkills = [];
+    var seenReq = new Set();
+    jdSkillsRaw.split(/[\r\n,]+/).forEach(function(s) {
+      var trimmed = s.trim();
+      if (trimmed && !seenReq.has(trimmed.toLowerCase())) {
+        seenReq.add(trimmed.toLowerCase());
+        requiredSkills.push(trimmed);
+      }
+    });
+
     // Combine all fields into one descriptive string for the backend
     var combinedJD = 'Job Title: '         + jdTitle          + '\n' +
                      'Company: '           + jdCompany        + '\n' +
@@ -918,6 +1029,10 @@
     var targetRole = document.getElementById('target-role').value.trim();
 
     /* 2. Validate — all required fields must be filled */
+    if (uploading) {
+      showError('Your resume is still being validated, please wait a moment.');
+      return;
+    }
     if (!extractedText && !selectedFile) {
       showError('Please upload a resume file or paste your resume text first.');
       return;
@@ -925,6 +1040,27 @@
     if (!targetRole)  { showError('Please enter your Target Role.'); return; }
     if (!jdTitle)     { showError('Please enter the Job Title.'); return; }
     if (!jdSkillsRaw) { showError('Please enter at least some Required Skills.'); return; }
+
+    /* 2b. Validate pasted text before proceeding (if no file was uploaded) */
+    if (!selectedFile && extractedText) {
+      try {
+        var validateRes = await fetch(API_BASE + '/api/validate-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: extractedText })
+        });
+        var validateData = await validateRes.json();
+        if (validateData.status === 'error') {
+          showError(validateData.message);
+          return;
+        }
+        // Use the cleaned text from the validator
+        extractedText = validateData.extracted_text || extractedText;
+      } catch (err) {
+        showError('Text validation failed: ' + err.message);
+        return;
+      }
+    }
 
     /* 3. Prepare UI for loading */
     hideError();
@@ -981,8 +1117,10 @@
       var entityData = await entityRes.json();
       if (entityData.status === 'error') throw new Error(entityData.message);
 
-      // "skills_identified" is a list of tech skills found in the resume text
+      // "skills_identified" is a list of canonical tech skills found in the resume text
       var resumeSkills = entityData.skills_identified || [];
+      var resumeSkillsDisplay = entityData.skills_display || resumeSkills;
+      window._lastResumeSkillsDisplay = resumeSkillsDisplay;
 
       setStepDone(stepIndex);
       await delay(200);
@@ -997,7 +1135,8 @@
         body:    JSON.stringify({
           resume_skills: resumeSkills,
           jd_text: combinedJD,
-          resume_text: resumeText
+          resume_text: resumeText,
+          required_skills: requiredSkills
         })
       });
       
@@ -1015,32 +1154,42 @@
       window._lastMatchedSkills = matchedSkills;
       window._lastResumeSkills  = resumeSkills;
       window._lastCombinedJD    = combinedJD;
+      window._lastTargetRole    = targetRole;
 
       setStepDone(stepIndex);
       await delay(200);
       stepIndex++;
+
+      /* Render score, radar, gaps, matched & resume skills immediately */
+      renderMatchResults(score, missingSkills, radarBreakdown, resumeSkillsDisplay, matchedSkills);
+
+      /* Hide loading panel and re-enable button so results are interactable right away */
+      document.getElementById('loading-panel').classList.add('hidden');
+      setButtonLoading(false);
+
+      /* Show loading state inside the blueprint card */
+      showBlueprintLoading();
+
       /* ── Step D: Generate project blueprint via Gemini ───────────────── */
-      setStepActive(stepIndex);
+      try {
+        var bpRes  = await fetch(API_BASE + '/api/generate-blueprint', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            missing_skills: missingSkills,
+            matched_skills: matchedSkills,
+            target_role: targetRole,
+            jd_text: combinedJD
+          })
+        });
+        var bpData = await bpRes.json();
+        if (bpData.status === 'error') throw new Error(bpData.message || 'Blueprint generation failed');
 
-      var bpRes  = await fetch(API_BASE + '/api/generate-blueprint', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          missing_skills: missingSkills,
-          matched_skills: matchedSkills,
-          target_role: targetRole,
-          jd_text: combinedJD
-        })
-      });
-      var bpData = await bpRes.json();
-      if (bpData.status === 'error') throw new Error(bpData.message);
-
-      var blueprint = bpData.blueprint; // Object: {project_name, description, ...}
-
-      setStepDone(stepIndex);
-
-      /* ── Render everything ────────────────────────────────────────────── */
-      renderResults(score, missingSkills, blueprint, radarBreakdown, resumeSkills);
+        renderBlueprint(bpData.blueprint);
+      } catch (bpErr) {
+        console.warn('Blueprint generation failed:', bpErr);
+        renderBlueprintError('Blueprint is temporarily unavailable, please try again');
+      }
 
     } catch (err) {
       showError('Backend error: ' + err.message +
@@ -1053,37 +1202,27 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
-     RENDER RESULTS
-     Takes the API data and injects it into the DOM.
+     RENDER MATCH RESULTS
+     Renders score ring, radar chart, skill gaps, resume skills, matched skills
   ══════════════════════════════════════════════════════════════════════════ */
-  function renderResults(score, missingSkills, blueprint, radarBreakdown, resumeSkills) {
-    // Safety checks - ensure variables are defined
-    if (!missingSkills) {
-      missingSkills = [];
-    }
-    if (!resumeSkills) {
-      resumeSkills = window._lastResumeSkills || [];
-    }
-    if (!blueprint) {
-      showError('Blueprint generation failed. Please try again.');
-      return;
-    }
-    
+  function renderMatchResults(score, missingSkills, radarBreakdown, resumeSkills, matchedSkills) {
+    if (!missingSkills) missingSkills = [];
+    if (!resumeSkills) resumeSkills = window._lastResumeSkillsDisplay || window._lastResumeSkills || [];
+    if (!matchedSkills) matchedSkills = window._lastMatchedSkills || [];
+
     var rounded = Math.round(score);
+
     /* ── Score Ring ──────────────────────────────────────────────────────── */
-    // The SVG circle has radius 54, so circumference = 2 * PI * 54 ≈ 339.3
     var circumference = 339.3;
-    // Offset = how much of the ring is NOT filled (full = 339.3, empty = 0)
     var offset = circumference - (rounded / 100) * circumference;
 
-    // Choose colour based on score
     var colour = rounded >= 70 ? '#10b981'   // green
                : rounded >= 45 ? '#f59e0b'   // amber
                : '#ef4444';                  // red
 
     var arc = document.getElementById('score-arc');
     arc.setAttribute('stroke', colour);
-    arc.setAttribute('stroke-dashoffset', offset); // CSS transition animates this
+    arc.setAttribute('stroke-dashoffset', offset);
     arc.style.filter = 'drop-shadow(0 0 8px ' + colour + ')';
 
     document.getElementById('score-number').textContent = rounded + '%';
@@ -1098,10 +1237,9 @@
     /* ── Skill Gap Pills ─────────────────────────────────────────────────── */
     var pillsDiv   = document.getElementById('skill-pills');
     var countBadge = document.getElementById('gap-count-badge');
-    pillsDiv.innerHTML = ''; // Clear previous results
+    pillsDiv.innerHTML = '';
 
     if (missingSkills.length === 0) {
-      // No gaps found — show a celebration message
       pillsDiv.innerHTML =
         '<div class="flex flex-col items-center gap-2 text-emerald-400 w-full py-4">' +
           '<span class="text-3xl">🎉</span>' +
@@ -1112,14 +1250,13 @@
     } else {
       countBadge.textContent = missingSkills.length + ' missing';
 
-      // Create one pill <span> per missing skill
       for (var i = 0; i < missingSkills.length; i++) {
         var pill = document.createElement('span');
         var pillClasses = isDark
           ? 'pill-in inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30'
           : 'pill-in inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200';
         pill.className = pillClasses;
-        pill.style.animationDelay = (i * 50) + 'ms'; // Stagger the entrance animation
+        pill.style.animationDelay = (i * 50) + 'ms';
         pill.textContent = missingSkills[i];
         pillsDiv.appendChild(pill);
       }
@@ -1129,7 +1266,6 @@
     var matchedDiv = document.getElementById('matched-skills');
     if (matchedDiv) {
       matchedDiv.innerHTML = '';
-      var matchedSkills = window._lastMatchedSkills || [];
       if (matchedSkills.length === 0) {
         matchedDiv.innerHTML = '<p class="text-xs text-slate-500">No matched skills detected for this role</p>';
       } else {
@@ -1161,80 +1297,31 @@
           pill.className = 'pill-in inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' +
                            (isDark ? 'bg-violet-500/10 text-violet-300 border border-violet-500/20' 
                                     : 'bg-violet-50 text-violet-700 border border-violet-200');
-          // Format skill display name
-          var cleanName = skill.charAt(0).toUpperCase() + skill.slice(1);
-          if (skill.toLowerCase() === 'html') cleanName = 'HTML';
-          if (skill.toLowerCase() === 'css') cleanName = 'CSS';
-          if (skill.toLowerCase() === 'javascript') cleanName = 'JavaScript';
-          if (skill.toLowerCase() === 'typescript') cleanName = 'TypeScript';
-          if (skill.toLowerCase() === 'mysql') cleanName = 'MySQL';
-          if (skill.toLowerCase() === 'mongodb') cleanName = 'MongoDB';
-          if (skill.toLowerCase() === 'rest api') cleanName = 'REST API';
-          if (skill.toLowerCase() === 'ai') cleanName = 'AI';
-          pill.textContent = cleanName;
+          pill.textContent = skill;
           allSkillsDiv.appendChild(pill);
         });
       }
     }
 
-    /* ── Blueprint Card ──────────────────────────────────────────────────── */
-    document.getElementById('bp-name').textContent = blueprint.project_name || '';
-    document.getElementById('bp-desc').textContent = blueprint.description  || '';
-
-    // Core Features: numbered list items
-    var featureList = document.getElementById('bp-features');
-    featureList.innerHTML = '';
-    var features = blueprint.core_features || [];
-    for (var f = 0; f < features.length; f++) {
-      var li = document.createElement('li');
-      li.className = 'pill-in flex items-start gap-3 text-sm text-slate-700 dark:text-slate-300';
-      li.style.animationDelay = (300 + f * 60) + 'ms';
-      li.innerHTML =
-        '<span class="w-5 h-5 rounded-full bg-violet-600/20 border border-violet-500/30 ' +
-               'flex items-center justify-center text-violet-400 text-xs shrink-0 mt-0.5">' +
-          (f + 1) + '</span>' + features[f];
-      featureList.appendChild(li);
-    }
-
-    // Tech Stack: indigo pill tags
-    var stackDiv = document.getElementById('bp-stack');
-    stackDiv.innerHTML = '';
-    var techs = blueprint.tech_stack || [];
-    var isCurrentlyDark = document.documentElement.classList.contains('dark');
-    for (var t = 0; t < techs.length; t++) {
-      var tp = document.createElement('span');
-      tp.className = 'pill-in inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ' +
-                     (isCurrentlyDark
-                       ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
-                       : 'bg-indigo-50 text-indigo-700 border border-indigo-200');
-      tp.style.animationDelay = (300 + t * 50) + 'ms';
-      tp.textContent = techs[t];
-      stackDiv.appendChild(tp);
-    }
-
-    // Resume bullet point
-    document.getElementById('bp-bullet').textContent = blueprint.resume_bullet_point || '';
-
     /* ── Show the results panel ──────────────────────────────────────────── */
     var panel = document.getElementById('results-panel');
     panel.classList.remove('hidden');
 
-    // Smooth-scroll to the results after a tiny delay (lets display:block take effect)
+    // Smooth-scroll to the results after a tiny delay
     setTimeout(function () {
       panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
 
     /* ── Radar Chart (Performance Breakdown) ────────────────────────────── */
-    // Destroy any previous instance to avoid canvas reuse errors
     if (window._radarChart) { window._radarChart.destroy(); }
 
+    var isCurrentlyDark = document.documentElement.classList.contains('dark');
     var chartTextColor = isCurrentlyDark ? 'rgba(226, 232, 240, 0.95)' : 'rgba(15, 23, 42, 0.95)';
     var chartGridColor = isCurrentlyDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)';
     var chartTickColor = isCurrentlyDark ? 'rgba(148, 163, 184, 0.8)' : 'rgba(100, 116, 139, 0.8)';
 
     var ctx = document.getElementById('performanceChart').getContext('2d');
     
-    // Dynamic chart data from backend, with sensible defaults if missing
     var radarData = [
       (radarBreakdown && radarBreakdown.technical_skills !== undefined) ? radarBreakdown.technical_skills : Math.min(100, Math.max(20, rounded)),
       (radarBreakdown && radarBreakdown.experience !== undefined) ? radarBreakdown.experience : 60,
@@ -1250,7 +1337,7 @@
         datasets: [{
           label: 'Candidate Competency',
           data: radarData,
-          backgroundColor: 'rgba(139, 92, 246, 0.2)',   // violet-500/20
+          backgroundColor: 'rgba(139, 92, 246, 0.2)',
           borderColor:     'rgba(139, 92, 246, 0.85)',
           pointBackgroundColor: '#8b5cf6',
           pointBorderColor:     '#fff',
@@ -1286,6 +1373,110 @@
     document.getElementById('interview-loading').classList.add('hidden');
     var iBtn = document.getElementById('interview-btn');
     if (iBtn) { iBtn.disabled = false; iBtn.textContent = '✨ Generate Interview Questions'; }
+  }
+
+  /* ── Blueprint helpers: loading, error, success ────────────────────────── */
+  function showBlueprintLoading() {
+    var content = document.getElementById('bp-content');
+    if (content) content.classList.add('hidden');
+    var err = document.getElementById('bp-error');
+    if (err) err.classList.add('hidden');
+    var loading = document.getElementById('bp-loading');
+    if (loading) loading.classList.remove('hidden');
+  }
+
+  function renderBlueprintError(message) {
+    var content = document.getElementById('bp-content');
+    if (content) content.classList.add('hidden');
+    var loading = document.getElementById('bp-loading');
+    if (loading) loading.classList.add('hidden');
+    var err = document.getElementById('bp-error');
+    var msgEl = document.getElementById('bp-error-msg');
+    if (msgEl) {
+      msgEl.textContent = message || 'Blueprint is temporarily unavailable, please try again';
+    }
+    if (err) err.classList.remove('hidden');
+  }
+
+  function renderBlueprint(blueprint) {
+    if (!blueprint) {
+      renderBlueprintError('Blueprint is temporarily unavailable, please try again');
+      return;
+    }
+    var loading = document.getElementById('bp-loading');
+    if (loading) loading.classList.add('hidden');
+    var err = document.getElementById('bp-error');
+    if (err) err.classList.add('hidden');
+    var content = document.getElementById('bp-content');
+    if (content) content.classList.remove('hidden');
+
+    document.getElementById('bp-name').textContent = blueprint.project_name || '';
+    document.getElementById('bp-desc').innerHTML = formatGeminiText(blueprint.description || '');
+
+    var featureList = document.getElementById('bp-features');
+    featureList.innerHTML = '';
+    var features = blueprint.core_features || [];
+    for (var f = 0; f < features.length; f++) {
+      var li = document.createElement('li');
+      li.className = 'pill-in flex items-start gap-3 text-sm text-slate-700 dark:text-slate-300';
+      li.style.animationDelay = (300 + f * 60) + 'ms';
+
+      var numBadge = document.createElement('span');
+      numBadge.className = 'w-5 h-5 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 text-xs shrink-0 mt-0.5';
+      numBadge.textContent = String(f + 1);
+
+      var textSpan = document.createElement('span');
+      textSpan.innerHTML = formatGeminiText(features[f]);
+
+      li.appendChild(numBadge);
+      li.appendChild(textSpan);
+      featureList.appendChild(li);
+    }
+
+    var stackDiv = document.getElementById('bp-stack');
+    stackDiv.innerHTML = '';
+    var techs = blueprint.tech_stack || [];
+    var isCurrentlyDark = document.documentElement.classList.contains('dark');
+    for (var t = 0; t < techs.length; t++) {
+      var tp = document.createElement('span');
+      tp.className = 'pill-in inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ' +
+                     (isCurrentlyDark
+                       ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
+                       : 'bg-indigo-50 text-indigo-700 border border-indigo-200');
+      tp.style.animationDelay = (300 + t * 50) + 'ms';
+      tp.textContent = techs[t];
+      stackDiv.appendChild(tp);
+    }
+
+    document.getElementById('bp-bullet').textContent = blueprint.resume_bullet_point || '';
+  }
+
+  async function retryBlueprint() {
+    var targetRole = window._lastTargetRole || '';
+    var combinedJD = window._lastCombinedJD || '';
+    var missingSkills = window._lastMissingSkills || [];
+    var matchedSkills = window._lastMatchedSkills || [];
+
+    showBlueprintLoading();
+
+    try {
+      var bpRes = await fetch(API_BASE + '/api/generate-blueprint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          missing_skills: missingSkills,
+          matched_skills: matchedSkills,
+          target_role: targetRole,
+          jd_text: combinedJD
+        })
+      });
+      var bpData = await bpRes.json();
+      if (bpData.status === 'error') throw new Error(bpData.message || 'Blueprint generation failed');
+      renderBlueprint(bpData.blueprint);
+    } catch (err) {
+      console.warn('Retry blueprint failed:', err);
+      renderBlueprintError('Blueprint is temporarily unavailable, please try again');
+    }
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -1332,23 +1523,43 @@
                            ? 'border-white/10 bg-white/[0.04]'
                            : 'border-slate-200 bg-slate-50 shadow-sm');
         card.style.animationDelay = (idx * 80) + 'ms';
-        card.innerHTML =
-          '<p class="text-sm font-semibold ' + (isCurrentlyDark ? 'text-slate-200' : 'text-slate-800') + '">' +
-            '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full ' +
-                   'bg-fuchsia-600/30 text-fuchsia-500 dark:text-fuchsia-300 text-xs font-bold mr-2">' + (idx + 1) + '</span>' +
-            item.q +
-          '</p>' +
-          '<p class="text-xs ' + (isCurrentlyDark ? 'text-slate-400' : 'text-slate-600') + ' pl-7">' +
-            '<span class="text-fuchsia-600 dark:text-fuchsia-400 font-semibold">💡 Hint: </span>' + item.hint +
-          '</p>';
+
+        var qP = document.createElement('p');
+        qP.className = 'text-sm font-semibold ' + (isCurrentlyDark ? 'text-slate-200' : 'text-slate-800');
+
+        var qBadge = document.createElement('span');
+        qBadge.className = 'inline-flex items-center justify-center w-5 h-5 rounded-full bg-fuchsia-600/30 text-fuchsia-500 dark:text-fuchsia-300 text-xs font-bold mr-2';
+        qBadge.textContent = String(idx + 1);
+
+        var qText = document.createElement('span');
+        qText.innerHTML = formatGeminiText(item.q);
+
+        qP.appendChild(qBadge);
+        qP.appendChild(qText);
+
+        var hintP = document.createElement('p');
+        hintP.className = 'text-xs ' + (isCurrentlyDark ? 'text-slate-400' : 'text-slate-600') + ' pl-7';
+
+        var hintLabel = document.createElement('span');
+        hintLabel.className = 'text-fuchsia-600 dark:text-fuchsia-400 font-semibold';
+        hintLabel.textContent = '💡 Hint: ';
+
+        var hintText = document.createElement('span');
+        hintText.innerHTML = formatGeminiText(item.hint);
+
+        hintP.appendChild(hintLabel);
+        hintP.appendChild(hintText);
+
+        card.appendChild(qP);
+        card.appendChild(hintP);
         qBox.appendChild(card);
       });
 
       btn.textContent = '🔄 Regenerate';
       btn.disabled    = false;
     } catch (err) {
-      qBox.innerHTML = '<p class="text-sm text-rose-400">Error: ' + err.message + '</p>';
-      btn.textContent = '✨ Generate Interview Questions';
+      qBox.innerHTML = '<div class="p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-sm text-rose-400">Interview questions are temporarily unavailable: ' + escapeHtml(err.message || 'Please try again later.') + '</div>';
+      btn.textContent = '🔄 Retry Questions';
       btn.disabled = false;
     } finally {
       loading.classList.add('hidden');
@@ -1371,7 +1582,21 @@
      RESET — go back to the blank input form
   ══════════════════════════════════════════════════════════════════════════ */
   function resetForm() {
+    hideError();
     document.getElementById('results-panel').classList.add('hidden');
+
+    var bpContent = document.getElementById('bp-content');
+    if (bpContent) bpContent.classList.remove('hidden');
+    var bpLoading = document.getElementById('bp-loading');
+    if (bpLoading) bpLoading.classList.add('hidden');
+    var bpError = document.getElementById('bp-error');
+    if (bpError) bpError.classList.add('hidden');
+
+    document.getElementById('bp-name').textContent = '';
+    document.getElementById('bp-desc').innerHTML = '';
+    document.getElementById('bp-features').innerHTML = '';
+    document.getElementById('bp-stack').innerHTML = '';
+    document.getElementById('bp-bullet').textContent = '';
 
     // Clear file state
     removeFile();
